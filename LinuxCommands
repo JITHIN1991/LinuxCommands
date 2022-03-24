@@ -750,6 +750,27 @@ db.passengersData.insert({name:"Jithin",age:29})   -   Inserts data ....what is 
 
 
 
+db.dropDatabase()   -   To drop a database
+
+db.myCollection.drop()    -   To drop a single collection
+
+
+
+                                             >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>SCHEMA AND STRUCTURING<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+MongoDB doesnt enforce the scheam
+
+But we can use schema by structuring the document as we want
+
+ 
+ >>>>Structuring documents
+
+If we want completely different doc structure for all the document in a collection  we can follow the structuring in a way that all documnets having the different structure(ie, fields) - ITs a kind of chaos!!! Not recommended for practice
+
+If we want the same structure for all the document in a collection with some extra fields in some documents,but there are common fields for all docs - we can follow the structuring ina way that all documnets having the same fields and some extra fields (if there is no value for the extra field,that extra field can be omitted or excluded from the doc)- Middle world approach
+
+If we want the same structure for all the document in acollection  we can follow the structuring ina way that all documnets having the same fields (if there is no value for field,it will be null)- ITs SQLish approach
+
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
