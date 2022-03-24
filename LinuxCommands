@@ -603,37 +603,65 @@ https://docs.mongodb.com/manual/tutorial/install-mongodb-on-ubuntu/
 
 
 
+>MongoDB documnet can have embedded documnet upto 100 levels of nesting
+
+>MongoDB can have arrays of embedded documemt
+
+>MongoDB : arrays can hold any data,integer,string,or embedded document etc
+
+>MongoDB document size limit -  16gb
+
+
+
+
+
 show dbs - shows all dbs
 
 use <db-name> - selects a db
 
 
 
-db.products.find()  - to list all data in a collection 
+db.products.find()  - to list all data in a collection ,it always gives us the cursor object through which we can cycle through the result .It doesnt give us the array of all the documents in a collection.Actually it givesthe first 20 documents and we need to type 'it' for the next 20 documents
 
-db.products.find().pretty() - to list all data in a collection in a pretty way
-
-db.flightData.find({intercontinental : true}).pretty()  -  Finds the documents that matches the filter condition
-
-db.flightData.find({}).pretty()  -   Finds all the documents since the filter condition is {}
+db.products.find().toArray() - gives all the documents without any cursor
 
 
-db.flightData.find({distance : {$eq:12000}}).pretty()    -   Finds the documents in which the distance is equal to 12000
-
-db.flightData.find({distance : {$lt:10000}}).pretty();   -   Finds the documents in which the distance is less than 10000
-
-db.flightData.find({distance : {$gt:10000}}).pretty();   -   Finds the documents in which the distance is greaterb than 10000
+>db.passengersData.find().forEach(data=>{ printjson(data)})  -   prints the whole documents using the forEach method on the cursor returned by the find method
 
 
-db.flightData.findOne({distance : {$eq:12000}})    -   Finds the first document in which the distance is equal to 12000
+>db.passengersData.find({},{name:1,_id:0}).pretty()  --  prints the documents with only name,This is projection,Where the _id is specified with value 0, for others the default value will be 0(here the name is specified with 1,if it is specified with 0, then the default for others will be 1).We     dont need to specify for other fields if we dont want them in the proejection
 
-db.flightData.findOne({distance : {$lt:10000}})   -   Finds the first document in which the distance is less than 10000
 
-db.flightData.findOne({distance : {$gt:10000}})   -   Finds the first document in which the distance is greaterb than 10000
-   
+>db.products.find().pretty() - to list all data in a collection in a pretty way
+
+>db.flightData.find({intercontinental : true}).pretty()  -  Finds the documents that matches the filter condition
+
+>db.flightData.find({}).pretty()  -   Finds all the documents since the filter condition is {}
+
+
+>db.flightData.find({distance : {$eq:12000}}).pretty()    -   Finds the documents in which the distance is equal to 12000
+
+>db.flightData.find({distance : {$lt:10000}}).pretty();   -   Finds the documents in which the distance is less than 10000
+
+>db.flightData.find({distance : {$gt:10000}}).pretty();   -   Finds the documents in which the distance is greaterb than 10000
+
+
+>db.flightData.findOne({distance : {$eq:12000}})    -   Finds the first document in which the distance is equal to 12000
+
+>db.flightData.findOne({distance : {$lt:10000}})   -   Finds the first document in which the distance is less than 10000
+
+>db.flightData.findOne({distance : {$gt:10000}})   -   Finds the first document in which the distance is greaterb than 10000
+
+>db.passengersData.findOne({name:"Gordon Black"}).hobbies  -  gives the element(hobbies) of the document.It should be used with fineOne,not with find
+
    ( pretty is not supported in findOne()  )
 
+   
+ [  db.passengersData.find({hobbies:"Music"}).pretty()  -  here assume the hobbies is an array,it will give the dcuments which have the hobbies array with value Music
+   
 
+
+ [ db.passengersData.find({"address.house":"Mambully"})  ]  -  ACCESSING STRUCTURED DATA : Here assume that the addrss is embedded document which has the field house,it will give the result for the house is "mambully" ,we can drill into further level if it has.
 
 
  db.flightData.updateOne({"_id" : ObjectId("623b2f95d5526a384e0e40e8")},{$set:{delayed:true}})   -   update the first document that matches the filter condition
@@ -708,6 +736,8 @@ db.flightData.updateOne({"distance" : 12000},{$set :{marker:"delete"}})    -   U
 
 
 
+
+db.passengersData.insert({name:"Jithin",age:29})   -   Inserts data ....what is the differnce between insert and insertOne or insertMany?
 
 
 
