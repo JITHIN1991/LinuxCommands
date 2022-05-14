@@ -131,6 +131,11 @@ seq 1 100 | xargs -n1 -P100 curl -H "Content-Type: application/json" -d @journey
 
 seq 1 100 | xargs -n1 -P100 curl -H "Content-Type: application/json" -d @journey_issue.json http://127.0.0.1:10042/design/api/v2/journey/validate &
 
+
+
+seq 1 500 | xargs -n1 -P100 curl -H "Authorization: Basic QVBJVXNlcjpBUElVc2Vy"  http://127.0.0.1:10080/api/v1/eventTypes &
+seq 1 500 | xargs -n1 -P100 curl -H "Authorization: Basic QVBJVXNlcjpBUElVc2Vy"  http://127.0.0.1:10080/api/v1/eventTypes &
+seq 1 100 | xargs -n1 -P100 curl -H "Authorization: Basic QVBJVXNlcjpBUElVc2Vy"  http://127.0.0.1:10080/api/v1/eventTypes 
 -------------------------------------------------------------------------------------------------------------------------
 
 
@@ -773,5 +778,2218 @@ If we want the same structure for all the document in acollection  we can follow
 
 
 
+
+
+                                              >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>DATA TYPES<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+-----------TEXT------------
+
+Eg : "Jithin" ,"ABC"  etc
+
+---------BOOLEAN-----------
+
+true or false
+
+
+----------NUmber-----------
+ Integer(32 bit long )  <  NumberLong ( 64bit)  <  NumberDecimal(To store high precision floating point value ,more precise than double)
+
+
+In the shell,if we enter a normal value it will be treated as a float value,that is bcoz the normal shell as we use it in the  course is based on the javascript.Javascript doesnt differentoate bw integers and float values.Value with decimal place.
+So everytjing willbe stored as a 64 bit float value in the shell,that is the default value
+
+
+
+----------ObjectId-----------
+
+ObjectId('abcdefghi2g34)  - it uses timestamp for the implementation of id
+created automatically
+if you create two documnets at the same time ,they will not have the same timestamp
+
+
+-----------ISODate---------------------Timestamp-----------------
+
+ISODate("2020-09-09") --------- Timestamp(12211122687)
+
+
+-----------Embedded DOcumnet---------------
+
+
+------------Arrays----------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+>db.companies.insertOne({name:"Fresh Apples Inc",isStartUp : true,employees:33,funding:12345678901234567890, details:{ceo:"jithin"},tags:[{title:"Super"},{title:"Perfect"}],foundingDate:new Date(),insertedAt:new Timestamp()})
+
+
+>db.companies.find().pretty();
+{
+	"_id" : ObjectId("623d0740bc06d37f12d9785d"),
+	"name" : "Fresh Apples Inc",
+	"isStartUp" : true,
+	"employees" : 33,
+	"funding" : 12345678901234567000,   // Not same : bcoz,it was too big number, normal number javascript accepts is a 64 bit floating point value and so that could notbe stored in MongoDB if we want to save long digit number then we should save it as a string
+	"details" : {
+		"ceo" : "jithin"
+	},
+	"tags" : [
+		{
+			"title" : "Super"
+		},
+		{
+			"title" : "Perfect"
+		}
+	],
+	"foundingDate" : ISODate("2022-03-25T00:05:20.383Z"),
+	"insertedAt" : Timestamp(1648166720, 1)
+}
+
+
+
+
+ >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Data Types & Limits<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+MongoDB has a couple of hard limits - most importantly, a single document in a collection (including all embedded documents it might have) must be <= 16mb. Additionally, you may only have 100 levels of embedded documents.
+
+You can find all limits (in great detail) here: https://docs.mongodb.com/manual/reference/limits/
+
+For the data types, MongoDB supports, you find a detailed overview on this page: https://docs.mongodb.com/manual/reference/bson-types/
+
+Important data type limits are:
+
+Normal integers (int32) can hold a maximum value of +-2,147,483,647
+
+Long integers (int64) can hold a maximum value of +-9,223,372,036,854,775,807
+
+Text can be as long as you want - the limit is the 16mb restriction for the overall document
+
+It's also important to understand the difference between int32 (NumberInt), int64 (NumberLong) and a normal number as you can enter it in the shell. The same goes for a normal double and NumberDecimal.
+
+NumberInt creates a int32 value => NumberInt(55)
+
+NumberLong creates a int64 value => NumberLong(7489729384792)
+
+If you just use a number (e.g. insertOne({a: 1}), this will get added as a normal double into the database. The reason for this is that the shell is based on JS which only knows float/ double values and doesn't differ between integers and floats.
+
+NumberDecimal creates a high-precision double value => NumberDecimal("12.99") => This can be helpful for cases where you need (many) exact decimal places for calculations.
+
+When not working with the shell but a MongoDB driver for your app programming language (e.g. PHP, .NET, Node.js, ...), you can use the driver to create these specific numbers.
+
+Example for Node.js: http://mongodb.github.io/node-mongodb-native/3.1/api/Long.html
+
+This will allow you to build a NumberLong value like this:
+
+const Long = require('mongodb').Long;
+ 
+db.collection('wealth').insert( {
+    value: Long.fromString("121949898291")
+});
+By browsing the API docs for the driver you're using, you'll be able to identify the methods for building int32s, int64s etc.
+
+
+
+
+
+
+
+
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Relations<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>One to One Relation - Embedded
+
+
+patient ---------one to one------>  diseaseSummary
+
+
+>db.patients.insertOne({name:"Dileep",age:43,diseaseSummary:"disease-sum1"});
+
+>db.diseaseSummary.insertOne({id:"disease-sum1",summary:["cold","fever"]});
+
+
+
+Here we need 2 steps to retrieve patients diseasesummary details
+
+1) var diseaseSum = db.patients.findOne().diseaseSummary;
+
+2) db.diseaseSummary.find({id:diseaseSum});
+
+{ "_id" : ObjectId("623d21d5bc06d37f12d9785f"), "id" : "disease-sum1", "summary" : [ "cold", "fever" ] }
+
+
+
+
+If we use emnbedded approach we dont need 2 steps
+
+>db.patients.insertOne({name:"Pradeep",age:44,diseaseSummary:{disease:["cold","headache"]}});
+
+>db.patients.findOne();
+
+{ "_id" : ObjectId("623d23dfbc06d37f12d97862"), "name" : "Pradeep", "age" : 44, "diseaseSummary" : { "disease" : [ "cold", "headache" ] } }
+
+
+
+
+>>>>>>One to one Reference
+
+
+It depends on the application driven requirement
+
+if we dont want extra data which may cuase the unnecessary object mapping results in delayed response, we can avoid embedded documents,instead we can use the references
+
+If we want to keep necessary data inside a documents,then we can use references for one-to-one relation,ie the link -that is the key take away so we can merge the data if we want to.
+
+NB: ? we can also use different collection so as to avoid one-to-one relation,so that we dont need to  use either embedded or reference
+
+
+
+
+>>>>>>>>>>>One to Many Relation - Embedded
+
+
+If we use reference for the one to many relation ,the Here we need 2 steps to retrieve patients diseasesummary details
+
+If we use emnbedded approach we dont need 2 steps
+
+
+>>>>>>>>>>>One to Many Relation - Reference
+
+Depends on the application requirement
+
+for example, city -> citizens relations (one to many)
+
+if we embed the citizen data in city document ,then it will be a huge data
+
+if the city document is referenced in citizen document ,then the relation can be established (so that we can avoid the doc limit of 16 mb)
+
+
+>>>>>>>>>>>Many to many relation  - Embedded
+
+
+join table
+no need to use join table 
+
+insteas use array of references 
+
+lets say
+ customer - product relation
+ 
+ order table is required for this many-to-many relations
+ 
+ 
+ Instaed of using the order docment
+ 
+ we can use the orders details in the customer document
+ 
+ customer : {
+ 
+	 "id": 12233,
+	 "name": "jithin",
+	 "age": 29,
+	 orders:[
+		  {
+		  	"productId":1232143124,
+		  	"quantity" : 5
+		  },
+		  {
+		  	"productId":1232143434t4,
+		  	"quantity" : 3
+		  },
+		  {
+		  	"productId":123214343rf34,
+		  	"quantity" : 6
+		  }
+	 ]
+ }
+ 
+Thus we can have the many-many reln by two documents
+
+We can also embed the document
+
+
+ customer : {
+ 
+	 "id": 12233,
+	 "name": "jithin",
+	 "age": 29,
+	 orders:[
+		  {
+		  	"title":"A book",
+		  	"price":12.50
+		  	"quantity" : 5
+		  },
+		  {
+		  	"title":"A Pen",
+		  	"price":5
+		  	"quantity" : 10
+		  }
+	 ]
+ }
+
+In this approach we can see the duplication,if the same products are repaeted in the orders of other customers too
+And if we change the product data in product collection,we also need to change this in the customers document also(There are some cases in which this will become an advantage,like if we change the prodcut price,this change should not be applicable for the previous orders,The prodcut should be availabel at that price,,,,But in other cases like persons age,year etc,as in book-author relation ,these details should be updated,In those cases,the reference approach will be better)
+
+
+>>>>>>>>>>>>>>>>>>>Many to Many - References
+
+Discussed above
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+-----------------------------------------------------Relations - Options-----------------------------------------------------------------
+
+>>>>>>>>>>>>>>>>Nested/Embedded Documents
+
+Group data together logically
+
+Great for data that belongs together and is not really overlapping  with other data
+
+Avoid  super - deep  nesting (100+ levels ) or  extremely long arrays(16mb size limit  per document)
+
+
+>>>>>>>>>>>>>>>>References
+
+Split data across collections
+
+Great for related but shared data as well as  for data  which is used in relations and standalone
+
+Allows you to overcome nesting and size limits (by creating new documents)
+
+
+
+
+
+
+
+
+--------------------------lookup aggregate method for merging reference relations-----------------------------------------
+
+It is helpful tool allows us to fetch two related documents merged together in one documentin one step instead of having  to do two steps
+
+>db.books.aggregate([{ $lookup:{from: "authors", localField: "authors", foreignField:"_id",as:"creators"} }])
+
+Here we are running aggregate on books collection, and the target collection is authors
+
+from -> from which other colection we want to relate
+
+localField -> the local field name of that relatio keys are storedn(here in book,we have one reference field to authors collections,ie authors ,will be simply an array of object ids)
+
+foreignField -> which field are we relating to in the target collection
+
+as -> as an alias,that means the result of aggregate method will be under this alias name
+
+
+
+The result will be like
+
+
+{
+
+"_id" : ObjectId("fjfbcfiwuehfiwhvskvnuwy83ry83"),
+"name" : "My Book",
+"authors": [
+		ObjectId("657cusygcustcutw8fugvcddf"),
+		ObjectId("657cusygcustcutw8fuwer3rt")
+	],
+	
+"creators" : [
+
+		{
+			"_id" : ObjectId("657cusygcustcutw8fugvcddf"),
+			"name" : "Jithin"
+			"age" : 29
+		
+		},
+				{
+			"_id" : ObjectId("657cusygcustcutw8fuwer3rt"),
+			"name" : "Nithin"
+			"age" : 31
+		
+		}
+
+
+	]
+
+}
+
+
+
+
+_____________________________________________________________SCHEMA VALIDATION________________________________________________________________________
+
+
+IN Mongodb we can have schema ,we can restrict the collections to follow certain schema
+
+
+________________________________validation level________________________________________________________________________validation action______________________________________
+
+
+_________________________which document get validated?__________________________________________________________what happens if validation fals________________________________
+
+
+_______________________strict=> All inserts and updates______________________________________________________error=>throw error and deny insert / update_______________________
+
+
+_____________moderate=> All inserts and updates to correct documents______________________________________________warn=>Log warnign but proceed________________________________
+
+
+
+Example=>
+
+Normally if we want ot create a collection,then we simply add the data in a new collection simply by
+
+db.posts.insertOne();
+
+But if we want to add some schema validation we need to use "createCollection" as below 
+
+db.createCollection('posts', {
+  validator: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['title', 'text', 'creator', 'comments'],
+      properties: {
+        title: {
+          bsonType: 'string',
+          description: 'must be a string and is required'
+        },
+        text: {
+          bsonType: 'string',
+          description: 'must be a string and is required'
+        },
+        creator: {
+          bsonType: 'objectId',
+          description: 'must be an objectid and is required'
+        },
+        comments: {
+          bsonType: 'array',
+          description: 'must be an array and is required',
+          items: {
+            bsonType: 'object',
+            required: ['text', 'author'],
+            properties: {
+              text: {
+                bsonType: 'string',
+                description: 'must be a string and is required'
+              },
+              author: {
+                bsonType: 'objectId',
+                description: 'must be an objectid and is required'
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+});
+
+
+
+Thus we are defining each field and its expected types  of values
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>CRUD OPERATIONS IN MONGODB<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+__________________________CREATE DOCUMENTS___________________________________________
+
+
+insertOne()
+insertMany()
+insert() -> Not recommended to use bcoz it makes confusion on whether we are adding one or many documents
+
+  -So it is error prone
+  -it doesnt return the id as it does for insertOne and insertMany
+
+mongo import -> mongoimport -d cars -c carsList --drop --jsonArray
+
+
+================insertyone =>
+
+								=================insertMany=========================
+
+ db.hobbies.insertMany([{"_id": "sports",name: "Sports"},{"_id": "music",name: "Music"},{"_id": "movie",name: "Movie"}])
+ 
+ if we try to add new documnet with the same id using the insertMany,then we will get error and allthe documents added before the error occured will not be roll backed
+ 
+
+ saying ,
+ MongoBulkWriteError: E11000 duplicate key error collection: contactData.hobbies index: _id_ dup key: { _id: "sports" } 
+ Result: BulkWriteResult {
+  result: {
+    ok: 1,
+    writeErrors: [
+      WriteError {
+        err: {
+          index: 0,
+          code: 11000,
+          errmsg: 'E11000 duplicate key error collection: contactData.hobbies index: _id_ dup key: { _id: "sports" }',
+          errInfo: undefined,
+          op: { _id: 'sports', name: 'Sports' }
+        }
+      }
+    ],
+    writeConcernErrors: [],
+    insertedIds: [
+      { index: 0, _id: 'sports' },
+      { index: 1, _id: 'music' },
+      { index: 2, _id: 'movie' }
+    ],
+    nInserted: 0,
+    nUpserted: 0,
+    nMatched: 0,
+    nModified: 0,
+    nRemoved: 0,
+    upserted: []
+  }
+}
+
+
+
+This is the default behaviour
+
+we can change this behaviour
+
+
+
+{ordered :false }  => it allows the user to specifywhetehr mongdb should performan oredered indsert which is the default
+
+
+
+ db.hobbies.insertMany([{"_id": "sports",name: "Sports"},{"_id": "music",name: "Music"},{"_id": "movie",name: "Movie"}],{ordered:false})
+
+we will get the same error but it will add the remainign elements
+
+
+MongoBulkWriteError: E11000 duplicate key error collection: contactData.hobbies index: _id_ dup key: { _id: "sports" }
+Result: BulkWriteResult {
+  result: {
+    ok: 1,
+    writeErrors: [
+      WriteError {
+        err: {
+          index: 0,
+          code: 11000,
+          errmsg: 'E11000 duplicate key error collection: contactData.hobbies index: _id_ dup key: { _id: "sports" }',
+          errInfo: undefined,
+          op: { _id: 'sports', name: 'Sports' }
+        }
+      },
+      WriteError {
+        err: {
+          index: 1,
+          code: 11000,
+          errmsg: 'E11000 duplicate key error collection: contactData.hobbies index: _id_ dup key: { _id: "music" }',
+          errInfo: undefined,
+          op: { _id: 'music', name: 'Music' }
+        }
+      },
+      WriteError {
+        err: {
+          index: 2,
+          code: 11000,
+          errmsg: 'E11000 duplicate key error collection: contactData.hobbies index: _id_ dup key: { _id: "movie" }',
+          errInfo: undefined,
+          op: { _id: 'movie', name: 'Movie' }
+        }
+      }
+    ],
+    writeConcernErrors: [],
+    insertedIds: [
+      { index: 0, _id: 'sports' },
+      { index: 1, _id: 'music' },
+      { index: 2, _id: 'movie' },
+      { index: 3, _id: 'cooking' }
+    ],
+    nInserted: 1,
+    nUpserted: 0,
+    nMatched: 0,
+    nModified: 0,
+    nRemoved: 0,
+    upserted: []
+  }
+}
+ 
+ 
+
+If yoi see nInserted: 1,1 element is added even we got the error
+
+===========================================Write concern===================================================
+
+
+
+There is a second option that we can configure in insrtone and insertmany ,ie write concern
+
+client ->  MongoDB Server(Mongod)    ->      Storage Engine -> 
+					        |      ||
+					        |      \/
+					        |    Memory (First it will write to my,bcoz it is faster than working with disk)
+					        |      ||
+					        |      \/
+                                              ||  Data on DIsk	
+						\/
+	                      		Jurnal(Todo)
+			             
+Now you can configure a so-called write concern on all the write operations like insert one with an
+
+additional argument, the write concern argument which is in turn a document where you can set settings
+
+	{w:1,j:undefined}
+
+The w simply means
+
+write
+
+and the number here indicates to how many instances, in case you're using multiple instances on one server,
+
+
+The J stands for the
+
+journal,
+
+the journal is an additional file which the storage engine manages which is like a To-Do file.
+
+The journal can be kept to then for example save operations that the storage engine needs to-do that have
+
+not been completed yet,
+
+like the write. Now it is aware of the write and that it needs to store that data on disk just by the write
+
+being acknowledged and being there in memory,
+
+it doesn't need to keep a journal for that.
+
+The idea of that journal file which is a real file on the disk is just that it is aware of this
+and if the server should go down for some reason or anything else happens, that file is still there
+
+and if you restart the server or if it recovers basically, it can look into that file and see what it
+
+needs to-do
+
+and that is of course a nice back up because the memory might have been wiped by then.
+
+So your write could be lost if it's not written to the journal, if it hasn't been written to the real
+
+data files yet, that is the idea of the journal, it's like a back up to-do list.
+
+
+
+
+
+{w:1,j:true}
+
+obviously enabling the journal confirmation
+
+means that your writes will take longer because you don't just tell the server about them but you also need
+
+to wait for the server to store that write operation in the journal
+but you get higher security that the write also succeeded.
+
+Again this is a decision you have to make depending on your application needs,
+
+
+
+db.persons.insertOne({name:"Max",age:"30",hobbies:["Sports","Cooking"]},{writeConcern:{w:0}})
+{
+  acknowledged: false,
+  insertedId: ObjectId("626b881e103e5a4db98f21aa")
+}
+
+
+
+W : 1 is the default,
+
+it simply means I need to be sure that the server acknowledge this,
+
+you can set this to 0. If you do this, you get back acknowledged false
+
+but if I find everything, you see that Chrissy was inserted.
+
+So you get back a different result, also without an objectID
+
+because it can't give you one, the server hasn't really registered this write yet, you just sent the request
+
+and you immediately return,
+
+you don't wait for a response of this request, so to say.
+
+So the storage engine had no chance to store it in memory and generate that objectId and therefore, you get
+
+back acknowledged false because you sent the request, you don't even know if it reached the server.
+
+This is of course super fast because you don't have to wait for any response here, for any ID generation
+
+
+
+
+
+=> db.persons.insertOne({name:"Max",age:"30",hobbies:["Sports","Cooking"]},{writeConcern:{w:0,j:true}})
+
+the journal can be set to true,
+
+the default is undefined or false,
+
+so if I set it to false, I have the same result as before.
+
+Now if I change it to McKayla and we set the journal to true now, the output for us does not change and
+
+.
+
+it also was super fast here because everything runs locally
+
+and it's not like the journaling will take four hours but it will have been a little bit slower because
+
+the entry will have been added to the journal and we waited for that journal editing to finish here.
+
+So here, we have higher security because we can also be sure that it ended up in this to do list of the
+
+storage engine which will eventually lead to the writes happen to database files.
+
+
+
+
+=>db.persons.insertOne({name:"Max",age:"30",hobbies:["Sports","Cooking"]},{writeConcern:{w:0,j:true,wtimeout:200}})
+=>db.persons.insertOne({name:"Max",age:"30",hobbies:["Sports","Cooking"]},{writeConcern:{w:0,j:true,wtimeout:1}})
+
+This will succeed in local because this is super fast here but it is an option which you can set in case
+
+you get shaky, a shaky connection or speed really matters and your connection is generally good but you
+
+can't rule out that once in a year,
+
+it's kind of shaky and you would then rather have that write fail and you recognize this in your client
+
+application of course because you'll get back an error here too.
+
+So you'll have that write fail and therefore you can try again later but you don't wait unnecessarily
+
+
+
+
+==================================Atomcity in MongoDB===============================
+
+
+it also succeeded because this is super fast here but it is an option which you can set in case
+
+you get shaky, a shaky connection or speed really matters and your connection is generally good but you
+
+can't rule out that once in a year,
+
+it's kind of shaky and you would then rather have that write fail and you recognize this in your client
+
+application of course because you'll get back an error here too.
+
+So you'll have that write fail and therefore you can try again later but you don't wait unnecessarily
+
+
+
+
+
+====================================import==============================================
+
+
+mongo import -> mongoimport  cars.json -d cars -c carsList --drop --jsonArray
+
+d -> database
+
+c -> Collection
+
+jsonArray -> if the cars,json contains an array of documents,then we should use the jsonArray
+
+drop -> if the collection already exist,then drop
+
+
+
+mongoimport  tv-shows.json -d movieData -c movies --jsonArray --drop
+
+----------------------------------------------------------------------------------R E A D OPERATION------------------------------------------------------------------------------------
+
+      Access    Apply  Equality/Single
+      this      This       Value
+    COLLECTION  METHOD    FILTER
+        |         |         |
+        |         |         |
+> db . movies . find( { age : 32 } );
+   |                     |     |
+   |                     |     |
+  Access               Field  Value
+  Current
+  DATABASE
+
+
+
+
+
+      Access    Apply    Equality/Single
+      this      This         Value
+    COLLECTION  METHOD       FILTER
+        |         |    _________|____________
+        |         |   |                      | 
+
+> db . movies . find( { age : { $gt : 32} } );
+   |                     |       |     |
+   |                     |       |     | 
+  Access               Field     |   Value
+  Current                        |
+  DATABASE                    Operator
+
+
+
+
+
+
+___________________________________________________________________________________________________________________________________________________________________
+
+            Read                                 Update                                  Query Modifiers                                 Aggregation
+_____________________________|___________________________________________|_____________________________________________|___________________________________________
+
+   Query & Projection                            Update                                                                         Explained in Aggregation Module
+
+    Query Selectors				   Fields                                D E P R E C A T E D
+
+   Projection Operators                          Arrays
+
+
+
+
+
+___________________________________________________________________________________________________________________________________________________________________
+
+            TYPE                                 PURPOSE                                  Changes data?                                 Example
+_____________________________|___________________________________________|_____________________________________________|___________________________________________
+
+       Query Operator                          Locate Data                                     NO                                          $eq
+
+     Projection Operator                 Modify Data Presentation                              NO                                           $
+
+       Update Operator                 Modify+ Add Additional data                             YES                                         $inc
+
+
+
+
+
+
+
+
+ Query Selectors      Projection Operators
+__________________|___________________________
+
+Comparison                       $
+Evaluation                   $elemMatch
+Logical                        $meta
+Array                         $slice
+Element
+Comment
+GeoSPacial
+
+
+
+
+
+
+
+
+
+
+
+db.movies.find( { runtime : { $eq : 60 } } )    equivalent to =>  db.movies.find({ runtime : 60 } )
+
+db.movies.find( { runtime : { $lt : 60 } } )   no equivalent to this
+
+
+
+-----------------------------------------------------Querying Embedded Fields and arrays
+
+
+db.movies.find({"rating.average":7.8});
+
+ db.movies.find({"rating.average":{$gt:7}});
+
+
+
+
+For array field,
+assume the genre filed is an array like
+
+genre:[
+	"Drama",
+	"Action",
+	"Anime",
+	"Horror"
+      ]
+
+
+> db.movies.find({genres:"Drama"}).pretty();
+
+ it will return allthe documents in collection with the array field genre containing the value Drama,even if it has any other fields as well
+ 
+> db.movies.find({genres: ["Drama"]}).pretty();
+
+ it will return allthe documents in collection with the array field genre exactly containing the only value Drama
+
+
+
+--------------------------------------$in and $nin
+
+
+
+> db.movies.find({runtime:{$in:[30,42]}}).pretty();
+
+returns all the documents that has the runtime value in one of the item in the list [30,42]
+
+> db.movies.find({runtime:{$nin:[30,42]}}).pretty();
+
+returns all the documents that has the runtime value not in one of the item in the list [30,42]
+
+
+
+
+
+-----------count
+
+count() returns the count of documents
+
+> db.movies.find({runtime:{$in:[30,42]}}).count();
+
+
+
+
+----------------------LOgical operators
+
+OR Operator
+
+> db.movies.find({$or:[{"rating.average":{$lt:5}},{"rating.average":{$gt:9.3}}]}).pretty();
+
+
+NOR Operator
+
+> db.movies.find({$nor:[{"rating.average":{$lt:5}},{"rating.average":{$gt:9.3}}]}).pretty();
+
+
+AND Operator
+
+> db.movies.find({$and:[{"rating.average":{$gt:8}},{"genres":"Drama"}]}).count();
+
+
+ By default mongoDb performs and operation in the filter,So that the following command will yield the same result
+
+> db.movies.find({"rating.average":{$gt:8},"genres":"Drama"}).count();
+
+
+
+
+
+> db.movies.find({"genres":"Horror","genres":"Drama"}).count();
+
+This may not work as expected in mongodb drivers,bcoz Js doesnt support the same key twice in Object(ie the object will be replaced with {"genres":"Drama"} eventually)
+
+In this case we can use AND instead
+
+> db.movies.find({ $and : [{"genres":"Horror"},{"genres":"Drama"}]}).count();
+
+
+
+
+NOT operator
+
+db.movies.find({runtime:{$not:{$eq:60}}}).count();
+
+is equivalent to
+
+db.movies.find({runtime:{$ne:60}}).count();
+
+
+
+
+
+$exist operator
+
+
+db.users.insertMany([
+	{
+		name: "Max",
+		hobbies:[
+			{
+				title:"Sports",
+				frequency:3
+			},
+			{
+				title:"Cooking",
+				frequency:6
+			}
+
+		],
+		phone:9896887587
+	},
+	{
+		name: "Manuel",
+		hobbies:[
+			{
+				title:"Cooking",
+				frequency:5
+			},
+			{
+				title:"Cars",
+				frequency:2
+			}
+
+		],
+		phone:"897374982379",
+		age:30
+	}
+
+])
+
+
+
+
+
+
+> db.users.find({age:{$exists:true,$gte:30}}).pretty();
+
+This will return
+
+[
+  {
+    _id: ObjectId("6271c8b4b8fbeaaf269c1e39"),
+    name: 'Manuel',
+    hobbies: [
+      { title: 'Cooking', frequency: 5 },
+      { title: 'Cars', frequency: 2 }
+    ],
+    phone: '897374982379',
+    age: 30
+  }
+]
+
+
+Here $exists will check whether the field exist or not
+
+
+
+
+
+> db.users.find({age:{$exists:true,$ne:null}}).pretty();
+
+This will also check the null values
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+db.users.find({phone:{$type:"number"}}).pretty();
+
+This will return the documents with field phone is of type double
+
+
+db.users.find({phone:{$type:["number","string"]}}).pretty();
+
+This will return the documents with field phone is of type double or String
+
+
+
+
+
+
+
+___________________evaluation_____________
+
+REGEX 
+
+> db.movies.find({summary:"musical"}).pretty();
+
+this will seaech for exact match of summary field
+
+
+> db.movies.find({summary:{$regex: /musical/}}).pretty();
+
+returns the result where the summarycontains the word "musical" using the regex
+
+
+
+
+
+
+EXPRESSION
+
+Expression is useful if you want to compare two fields inside of one document and then find all documents
+
+
+
+
+
+
+db.sales.insertMany(
+	[	
+		{	
+			volume:100,
+			target:120
+		},
+		{	
+			volume:89,
+			target:80
+		},
+		{	
+			volume:200,
+			target:180
+		}
+	]
+
+)
+
+
+
+We want to compare the volume and target fields ,for that we can use $expr
+
+
+
+> db.sales.find({$expr:{$gt:["$volume","$target"]}}).pretty();
+
+this will return the documents where volume is gt target
+
+[
+  { _id: ObjectId("6272a50db8fbeaaf269c1e3b"), volume: 89, target: 80 },
+  {
+    _id: ObjectId("6272a50db8fbeaaf269c1e3c"),
+    volume: 200,
+    target: 180
+  }
+]
+
+
+Here we should use like "$volume" , "$target"
+
+If we want to refer to the field names, we have to add a dollar sign at the beginning,
+
+this tells mongodb hey please look at the volume field and use the value of that in this expression
+
+and you can't use that in every place in your queries,
+
+it does work on the expression query though and later in the aggregation framework module, you'll find
+
+more places where you can use that.
+
+
+
+Here we only find two documents where the volume indeed is higher than the target.
+
+The first document where that was not the case is not included in the results subset and that is of
+
+course super useful because with this dynamic approach, we have an easy time of fetching the data where
+
+some condition within the document is met,
+
+so where two kind of related fields have a certain kind of relation that we check here.
+
+
+
+
+
+
+
+
+
+More complex expression.This can be useful
+
+If we wantto implement the following expression
+
+if( (doc.volume >=190 ? doc.volume-10 : doc.volume ) > doc.target  ){
+
+//return the document
+
+return doc;
+}
+
+> db.sales.find({$expr: {$gt: [{$cond:{if:{$gte:["$volume",190]},then: {$subtract:["$volume",10]} ,else: "$volume" }},"$target"]}}).pretty();
+
+returns...
+
+[
+  { _id: ObjectId("6272a50db8fbeaaf269c1e3b"), volume: 89, target: 80 },
+  {
+    _id: ObjectId("6272a50db8fbeaaf269c1e3c"),
+    volume: 200,
+    target: 180
+  }
+]
+
+
+
+
+
+
+____________________________Querying Array
+
+
+
+
+
+
+
+Use the db -> user
+it has 2 documents in collection users
+
+user> db.users.find().pretty();
+[
+  {
+    _id: ObjectId("6271c8b4b8fbeaaf269c1e38"),
+    name: 'Max',
+    hobbies: [
+      { title: 'Sports', frequency: 3 },
+      { title: 'Cooking', frequency: 6 }
+    ],
+    phone: 9896887587
+  },
+  {
+    _id: ObjectId("6271c8b4b8fbeaaf269c1e39"),
+    name: 'Manuel',
+    hobbies: [
+      { title: 'Cooking', frequency: 5 },
+      { title: 'Cars', frequency: 2 }
+    ],
+    phone: '897374982379',
+    age: 30
+  }
+]
+
+
+
+
+> db.users.find({hobbies:"Sports"}).pretty();
+
+This will not return any data
+
+bcoz,the array contains object,so we need to use different filter
+
+Like this
+
+user> db.users.find({hobbies:{title:"Sports",frequency:3}}).pretty();
+[
+  {
+    _id: ObjectId("6271c8b4b8fbeaaf269c1e38"),
+    name: 'Max',
+    hobbies: [
+      { title: 'Sports', frequency: 3 },
+      { title: 'Cooking', frequency: 6 }
+    ],
+    phone: 9896887587
+  }
+]
+
+
+
+
+
+Instead of this we can use different approach using the 
+
+
+user> db.users.find({ "hobbies.title":"Sports"}).pretty();
+
+
+
+inside the hobbies array, so we can act as if hobbes would hold just an embedded document and dig into
+
+properties of that embedded document
+
+even though here we got multiple embedded documents in an array but mongodb understands this syntax
+
+and what it will do for this query is it will essentially go through all the elements in hobbies and
+
+for each element, it will dig into the document and compare title to our query value, so to sports.
+
+
+
+
+
+
+should keep in mind, that you can use this path embedded approach, not only on directly embedded documents,
+
+so if you have one embedded document in a field but also, if you have an array of embedded documents
+
+and then you can use the same query world with greater than and everything you want as before, you don't
+
+just have to look for equality,
+
+
+
+
+
+
+_________________Using Array Query Selectors
+
+
+$size
+
+db.users.insertOne({name:"Chris",hobbies:["Sports","Cooking","Hiking"]});
+
+
+
+ now I want to find all users who have three hobbies which should be just Chris because the
+
+other users have two
+
+and it doesn't matter whether a hobby is an embedded document or just a string,
+
+it's just the amount of items in the hobbies array that matters. To find all users with exactly three
+
+hobbies, I can look into my users with find and now the value for find is that I use hobbies and I'm looking
+
+for a size of three, written like this.
+
+
+
+user> db.users.find({hobbies:{$size:3}}).pretty();
+[
+  {
+    _id: ObjectId("6272b32eb8fbeaaf269c1e3d"),
+    name: 'Chris',
+    hobbies: [ 'Sports', 'Cooking', 'Hiking' ]
+  }
+]
+
+
+
+
+
+
+
+
+
+
+
+$all
+
+
+
+db.moviestars.find({genre:["action","thriller"]}).pretty();
+
+
+This will return the document that has the genre exactly as ["action","thriller"]
+
+The order does matter
+
+
+But what if I don't care about the order? Well then, the all operator can help you. For this,
+
+I simply wrap my array in a document where I use $all as operator and that operator receives
+
+my array then and we also need to close that extra curly brace.
+
+
+
+
+> db.moviestars.find({genre:{ $all : ["action","thriller"]} }).pretty();
+
+
+What this will do is it will now search genre for these keywords and it will make sure that these items
+
+do have to exist in genre and these items could be numbers, could be embedded documents, could be other arrays
+
+even, doesn't matter
+
+but it ensures that these two elements exist in a genre
+
+but it doesn't care about the order. And therefore now I find both documents even though the order is
+
+different within genre.
+
+
+
+
+
+
+
+
+
+
+
+
+
+$elemMatch
+
+
+
+>db.users.find({$and: [{"hobbies.title":"Sports"},{"hobbies.frequency":{$gte:3}}]}).pretty();
+
+this will return the documnents that has hobbies array in which the title= sports and frequency >=3
+
+
+The thing is with this query, we're basically saying find me all documents where in hobbies,
+
+there is a document at least one document with the title sports and a document with the frequency greater
+
+than or equal to three,
+
+it does not have to be the same document,
+
+
+so the first part is satisfied and the second part is satisfied with that other element.
+
+Now of course it's not that uncommon that you want to ensure that one and the same element should match
+
+your conditions
+
+and for that, you have the elemMatch operator. So this query
+
+and I'll just count it so that we have it still on page, this query can be replaced with another query
+
+that should do what we want. Instead of and,
+
+we specify our array hobbies and then a value which is a document where we use $elemMatch,
+
+
+
+
+
+
+>db.users.find({hobbies: {$elemMatch : { title:"Sports",frequency:{$gte:3} }}}).pretty();
+
+
+
+
+
+
+
+---------------CURSOR
+
+
+we potentially get back thousands or even millions of documents with find, especially if we have no
+
+condition in there
+
+but even with a condition, you easily have a condition that still meets like 1000 documents or more
+
+depending on the scale of your app.
+
+So you get back all these results and that is very inefficient because all these results have to be
+
+fetched from the database,
+
+they have to be sent over the wire and then they have to be loaded into memory in your client application.
+
+So these are three things that are not optimal because chances are you will not need all thouand documents
+
+at the same time and therefore, find gives you a cursor. A cursor is basically a pointer which has the
+
+query you wrote stored and which can therefore quickly go to the database and say hey, give me the next
+
+batch,
+
+
+
+
+
+					find()
+					  |
+					  |
+					 \"/
+					
+				Potentially yields 1000s
+				 	or
+				 millions of documnets
+				 
+		Client(Cursor)	 ---------------------->    MongoDB Server DB
+			|	 <---------------------	|
+			|	  				|
+			|______  Request Batch #1 ____________|
+			|______ Request Batch #2 _____________|
+			|__________ .........  _______________|
+
+
+cursor approach is
+
+great because it saves resources.
+
+If you have a query that meets 1000 documents, but let's say you have a website where you only display
+
+10 items, let's say 10 products you fetched at a time anyways, then there is no need to load all thousand
+
+results that matched your query right at the start.
+
+Instead you would only fetch the first 10,
+
+display them on the screen and then go ahead and fetch the next 10
+
+when the user navigated to the next page or anything like that. This is the idea behind a cursor,
+
+now we'll find out how to work with a cursor
+
+
+
+
+
+
+
+
+
+
+
+
+
+-----------------------------Applying Cursors
+
+
+db.movies.find().count() => returns the count
+
+
+ const dataCursor = db.movies.find();
+ 
+ dataCursor.hasNext() => rreturns true if data present in the cursor
+ 
+ dataCursor.next() => returns the next element
+ dataCursor.next() => returns the next element
+ dataCursor.next() => returns the next element
+ dataCursor.next() => returns the next element
+ dataCursor.next() => returns the next element
+
+
+
+
+
+
+ const dataCursor = db.movies.find();
+dataCursor.forEach(d=>{printjson(d)})
+
+If we use the cursor again after this loop we will get error
+
+> dataCursor.next() 
+
+MongoCursorExhaustedError: Cursor is exhausted
+
+
+
+
+
+
+
+_________________________________Sorting Cursor result________________________________
+
+
+
+
+sort isnot avaialable for fndOne
+
+
+
+> db.movies.find().sort({"rating.average":-1}).pretty()
+
+  sort based on the rating. average field in the doc in ascending oreder
+  
+  
+> db.movies.find().sort({"rating.average":-1,runtime:-1}).pretty();
+
+  sort based on the rating. average field in the doc in ascending oreder and runtime field in descending order
+  
+  
+
+
+____________________________________Skipping and limiting Cursor Results_____________________________-
+
+
+movieData> db.movies.find().count();
+240
+movieData> db.movies.find().skip(200).count();
+40
+movieData> db.movies.find().skip(200).limit(1).count();
+1
+
+
+So skipping does allow us to move through our data set,
+
+if I skip 100, then we can see the ratings are much higher because we skipped all the bad ones, the 100
+
+bad ones, we skipped them,
+
+now skip is also used on a cursor as you can tell. Now related to skip somehow is the limit function, limit
+
+allows you to limit the amount of elements the cursor should retrieve at a time
+
+and that also means the amount of documents you can then move through with a cursor.
+
+You can limit this to 10 for example,
+
+the interesting thing is if you here add count, you still have 240
+
+
+
+db.movies.find().skip(200).limit(1);
+
+
+it will  skip 200 elements and limit 1 element
+
+we can limit first,or skip first => orderis not important
+
+its very usefulfor pagination 
+
+
+
+
+
+
+_________________________Using projection to shape our resultSet__________________________________--
+
+
+
+now let's talk about how we can shape the data which we do get back into the form we needed in. Because
+
+in the example of our movies, we have all that data for every document we return, that might simply be too
+
+much data,
+
+not only is it a lot of redundant data that we transfer over the wire
+
+if we don't need it, it also makes it harder for it to work with the data
+
+if we have to manually parse all that. Now with projection, we can control which data is returned.
+
+Let's say we are only interested in the name, the genres, the runtime and the rating and all the rest does
+
+not matter to us. If that is the case, I can write a query here without any criteria,
+
+
+
+
+
+
+
+
+movieData> db.movies.find({},{name:1,genres:1,runtime:1,rating:1})
+
+[
+ {
+    _id: ObjectId("626b90a3e561b786bc19b5f4"),
+    name: 'Once Upon a Time in Wonderland',
+    genres: [ 'Adventure', 'Fantasy' ],
+    runtime: 60,
+    rating: { average: 6.7 }
+  },
+  {
+    _id: ObjectId("626b90a3e561b786bc19b5f5"),
+    name: 'True Blood',
+    genres: [ 'Drama', 'Romance', 'Supernatural' ],
+    runtime: 60,
+    rating: { average: 8 }
+  },
+  {
+    _id: ObjectId("626b90a3e561b786bc19b5f6"),
+    name: 'The Last Ship',
+    genres: [ 'Drama', 'Action', 'Thriller' ],
+    runtime: 60,
+    rating: { average: 7.8 }
+  }
+]
+
+
+Here id is always included in the document
+
+To remove this ,we need to specify the _id as 0 as shown below
+
+movieData> db.movies.find({},{name:1,genres:1,runtime:1,rating:1,_id:0})
+
+
+[
+ {
+    name: 'Once Upon a Time in Wonderland',
+    genres: [ 'Adventure', 'Fantasy' ],
+    runtime: 60,
+    rating: { average: 6.7 }
+  },
+  {
+    name: 'True Blood',
+    genres: [ 'Drama', 'Romance', 'Supernatural' ],
+    runtime: 60,
+    rating: { average: 8 }
+  },
+  {
+    name: 'The Last Ship',
+    genres: [ 'Drama', 'Action', 'Thriller' ],
+    runtime: 60,
+    rating: { average: 7.8 }
+  }
+]
+
+
+
+
+
+
+
+In the embedded documents ,if we are only interested in only a few fields,then we can explicitly specfy those fields(Assuming that the schedule has other fields as well)
+
+movieData> db.movies.find({},{name:1,genres:1,runtime:1,rating:1,"schedule.time":1,_id:0})
+
+[
+  {
+    name: 'Once Upon a Time in Wonderland',
+    genres: [ 'Adventure', 'Fantasy' ],
+    runtime: 60,
+    schedule: { time: '20:00' },
+    rating: { average: 6.7 }
+  },
+  {
+    name: 'True Blood',
+    genres: [ 'Drama', 'Romance', 'Supernatural' ],
+    runtime: 60,
+    schedule: { time: '21:00' },
+    rating: { average: 8 }
+  },
+  {
+    name: 'The Last Ship',
+    genres: [ 'Drama', 'Action', 'Thriller' ],
+    runtime: 60,
+    schedule: { time: '21:00' },
+    rating: { average: 7.8 }
+  }
+]
+
+
+
+
+
+
+
+_____________________________________________-Using Projection in Array_______________________________________
+
+	       Filter  Projection
+		  |	  |
+db.movies.find({   } , {   })
+
+
+movieData> db.movies.find({genres:"Drama"},{"genres.$":1})
+[
+  { _id: ObjectId("626b90a3e561b786bc19b5e3"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5e4"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5e5"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5e7"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5e8"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5e9"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5ea"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5eb"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5ec"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5ed"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5ee"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5ef"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f0"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f1"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f2"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f5"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f6"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f7"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f9"), genres: [ 'Drama' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5fa"), genres: [ 'Drama' ] }
+]
+
+
+
+here, I can use a special syntax and set genres.$ to one.
+
+Now what this means is give me the one genre you found and therefore in my genres, I only have drama
+
+now,
+
+now these items will have more genres than just drama,
+
+I only just fetch the drama,
+
+I only just output that because that might be the only thing I'm interested
+
+but the items behind the scenes will have more data, just as they have other fields too.
+
+They have more genres too but with this syntax, I only find the first match for my query here,
+
+if I had a more complex query for different genres, I would still just find the first match,
+
+
+
+
+> movieData> db.movies.find({ genres: { $all: ["Drama", "Horror"] } }, { "genres.$": 1 })
+[
+  { _id: ObjectId("626b90a3e561b786bc19b5ec"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5ed"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f0"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f1"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f7"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f9"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5fe"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b602"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b62c"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b676"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b67e"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b69c"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b69e"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b69f"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b6b1"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b6bf"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b6ce"), genres: [ 'Horror' ] }
+]
+
+
+
+might look strange at first,
+
+the reason for this is that all works such that it goes through the arrays and checks for the existence
+
+of drama and horror,
+
+so the first element to me both is well found when horror is confirmed to be in there too and that
+
+is why we output horror because that technically is the first matching element,
+
+drama alone didn't match anything,
+
+the main thing here is that it doesn't return both but only one.
+
+Now sometimes you could also have the case where you want to pull out some items from an array in your
+
+document that are not the items you queried for.
+
+
+
+
+
+
+
+
+
+> movieData> db.movies.find({ genres: { $all: ["Drama", "Horror"] } }, { "genres":{ $elemMatch:{$eq: "Horror"}}})
+[
+  { _id: ObjectId("626b90a3e561b786bc19b5ec"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5ed"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f0"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f1"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f7"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5f9"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b5fe"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b602"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b62c"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b676"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b67e"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b69c"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b69e"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b69f"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b6b1"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b6bf"), genres: [ 'Horror' ] },
+  { _id: ObjectId("626b90a3e561b786bc19b6ce"), genres: [ 'Horror' ] }
+]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_________________________________________Understanding $slice _____________________________________________
+
+
+> movieData> db.movies.find({ genres: { $all: ["Drama", "Horror"] } }, { name:1,"genres":{$slice:2}})
+
+
+
+[
+  {
+    _id: ObjectId("626b90a3e561b786bc19b6b1"),
+    name: 'Being Human',
+    genres: [ 'Drama', 'Horror' ]
+  },
+  {
+    _id: ObjectId("626b90a3e561b786bc19b6bf"),
+    name: 'The River',
+    genres: [ 'Drama', 'Horror' ]
+  },
+  {
+    _id: ObjectId("626b90a3e561b786bc19b6ce"),
+    name: 'Ravenswood',
+    genres: [ 'Drama', 'Horror' ]
+  }
+]
+
+
+
+
+
+
+
+
+Here the array of genres is reduced to 2 elements 
+
+
+
+movieData> db.movies.find({ genres: { $all: ["Drama", "Horror"] } }, { name:1,"genres":{$slice:[1,2]}})
+
+Here it will skip the first item in the array and shows thye next two items,(ie 2nd and 3rd elements)
+
+
+
+
+
+
+
+
+___________________________________________________________________UPDATE DOCUMENT____________________________________________________________________
+
+
+
+UpdateOne simply takes the first document that matches your filter criteria and updates that even if
+
+multiple documents would normally match your criteria,
+
+updateMany will take your criteria, your filter and update all documents that match it.
+
+
+
+
+
+
+
+
+
+
+we can use a variety of update operators.
+
+Now you can find all update operators in the official docs in the reference under update operators
+
+
+
+update operators,we want to update a field or a couple of fields actually.
+
+Now for that, we use $set
+
+and we saw that earlier in the course already. $set simply takes a document where you describe
+
+some fields that should be changed or added to the existing document,
+
+
+> db.users.updateOne({_id:ObjectId("627e825a03670d27402f6ad9")},{$set:{hobbies:[{title:"Sports",frequency:20},{title:"Cooking",frequency:3}]}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+
+
+
+
+
+so $set does not override the existing values
+
+instead it simply just defines some changes that mongodb evaluates and then if they make sense,
+
+it changes the existing document by adding or overriding these fields. All the existing fields are left
+
+untouched,
+
+they are not removed.
+
+You can remove fields and I'll come to that in this module but by default, it simply just adds or edits
+
+the fields which you specify,
+
+so this is update one.
+
+
+
+
+
+
+users> db.users.updateMany({"hobbies.title":"Sports"},{$set:{isSporty:true}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 3,
+  modifiedCount: 3,
+  upsertedCount: 0
+}
+
+
+
+
+
+
+
+
+
+__________________Updating multiple fields with $set____________________
+
+
+
+users> db.users.updateOne({_id:ObjectId("627e825a03670d27402f6ad9")},{$set:{age:40,phone:3847345439}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+
+
+
+
+
+
+
+
+
+
+__________________________incrementing and decrementing values___________________________
+
+
+
+
+users> db.users.updateOne({_id:ObjectId("627e825a03670d27402f6ad9")},{$inc:{age:1},$set:{phone:2384734543911111}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+
+
+This will increment the age by 1 and set the phone field also
+
+
+
+
+> db.users.updateOne({_id:ObjectId("627e825a03670d27402f6ad9")},{$inc:{age:-1}});
+
+This will decrement the age by -1
+
+>>>Updating the same filed using inc and set willnot work
+
+users> db.users.updateOne({_id:ObjectId("627e825a03670d27402f6ad9")},{$inc:{age:1},$set:{age:30}});
+MongoServerError: Updating the path 'age' would create a conflict at 'age'
+
+
+
+
+
+
+
+__________________________using  min max and mul________________________________________
+
+
+
+a scenario you might encounter, that you want to set some field to a certain value but only if it currently
+
+is higher and not if it is lower,
+
+
+
+users> db.users.updateOne({name:"Chris"},{$min:{age:35}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+
+
+
+
+if the user is alraedy lessthan a value it will not update
+
+users> db.users.updateOne({name:"Chris"},{$min:{age:38}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 0,
+  upsertedCount: 0
+}
+
+
+
+
+Like wise max will update the value if it is less than the specified value
+
+
+users> db.users.updateOne({name:"Chris"},{$max:{age:50}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+
+
+
+$mul will multiply the value
+
+
+users> db.users.updateOne({name:"Chris"},{$mul:{age:2}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+
+
+
+
+
+_______________________________getting rid of the fields_______________________________
+
+
+
+
+users> db.users.updateMany({isSporty:true},{$set:{phone:null}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 3,
+  modifiedCount: 3,
+  upsertedCount: 0
+}
+
+
+
+This will set the field value as null
+
+
+users> db.users.updateMany({isSporty:true},{$unset:{phone:""}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 3,
+  modifiedCount: 3,
+  upsertedCount: 0
+}
+
+This will drop the field fromthe documents
+
+
+______________________________Renaming the fields______________________-
+
+
+
+
+users> db.users.updateMany({},{$rename:{age:"totalAge"}});
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 4,
+  modifiedCount: 3,
+  upsertedCount: 0
+}
+
+This will rename the age field to a new name -> totalAge
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GitHub token JITHIN1991
+
+
+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
+
+
 
