@@ -1,3 +1,4 @@
+
 ---------------------------------------------------------------------------------------MongoDB-------------------------------------------------------------------------------------------
 
 
@@ -4248,4 +4249,3305 @@ should be closed or documents should be zero so that it looked at zero documents
                                                        
                                                        
                                                        
-                                                       
+______________________________________________________Understanding covered Query__________________________________________________________
+
+
+If you have some query where you
+
+can optimize your index for that, to reach that covered query state as it is called because the query
+
+is fully covered by the index, then you will of course have a very efficient query because you skipped
+
+that stage of reaching out to the collection getting the documents
+
+and that obviously speeds up your query,
+
+if you can get this to work, you will have a very fast solution.
+
+Now of course it does not make sense to build tens of indexes just to cover all possible queries because
+
+then you'll have a problem with writing again and so on
+
+but if you have an opportunity and you have a query that you typically run and you only typically return
+
+these two fields, it might be worth storing them in a single field or if it's two fields, to store them
+
+in a compound index so that you can fully cover the query from inside your index.
+
+And this is something very interesting to know, that you can reach that covered query state sometimes
+
+at least.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_____________________________________________How MongoDB rejects a plan_________________________________________________________________
+
+
+
+
+in ascending order and name,
+
+now please note that the order here is important for compound indexes and if I would have put name
+
+first, this index here wouldn't make much sense because then I would have a single field index or
+
+name
+
+even though the name is the first field in a compound index and you learned from left to right, a compound
+
+index can be used well standalone, so each field can be used standalone from left to right.
+
+So in this case, if age comes first, we can also filter just for age and take advantage of this index, for
+
+name,
+
+we can take advantage of this index because name is only the second value is mapped to the respective
+
+ages and only sorted within the age category,
+
+so if you filtered for just name and you didn't have that index, name could not be supported by index.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Now what we can see is that we now also have a rejected plan and the rejected plan was to use an
+
+index scan just on the name index, that is the single field name index I created.
+
+Of course it made sense for mongodb to also consider this because we have that name index,
+
+we had a query that included a search for name,
+
+so it made sense to consider that name index
+
+but of course since we have another index which simply fits this query better, this compound index,
+
+mongodb chose to use this one as a winning plan and rejected this one.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+mongodb chose to use this one as a winning plan and rejected this one.
+
+Now this is interesting to know,
+
+the question of course is how exactly does mongodb figure out which plan is better? For this, mongodb
+
+uses an approach where it simply
+
+first of all looks for indexes that could help you with the query at hand,
+
+so in our last lecture and example, we had the name single field index and age and name as a compound index.
+
+Since our query, our find method included a look for name, mongodb automatically derived that
+
+both the name single field index and the age name compound index could be helpful.
+
+
+
+
+
+
+
+
+
+Winning Plan Algoritm
+
+
+
+so let's say we have three approaches, mongodb then simply let's those approaches race against each
+
+other but not for the full dataset
+
+but it sets a certain winning condition, right now that should be one hundred documents.
+
+So it looks who's the first to find 100 documents and of course one of the approaches will be the fastest
+
+to reach that threshold, mongodb will then basically use that approach for the real query
+
+and of course that would be cumbersome if it would have to do this for every find method, for every
+
+query you send to the database because that obviously costs a little bit of performance.
+
+Therefore mongodb caches
+
+this winning plan for this exact query,
+
+so for exactly the query you send with the fields you were looking for and the values for the fields
+
+you were looking for,
+
+so it caches this plan as the winner plan for this kind of query. And for future queries that are looking
+
+exactly equal, it uses this winning plan, for future queries that look different, that use different values
+
+or different keys,
+
+it will of course race again and find a winning plan for that type of query.
+
+Now of course this cache is not there forever,
+
+it is cleared after a certain amount of inserts or a db restart.
+
+To be precise, instead of being stored forever,
+
+this winning plan is removed from cache after you wrote a certain amount of documents to that collection,
+
+currently there should be one thousand,
+
+so after you added that many documents, mongodb says I don't know if the current winning plan will still
+
+win because the collection changed a lot,
+
+so I should reconsider.
+
+The same happens if you rebuild the index, so if you drop it and recreate it for example,
+
+it also gets deleted if you add other indexes because that new index could be better,
+
+so the cache for indexes or winning plans I should say gets cleared when you add new indexes or when
+
+you restart the mongodb server,
+
+then this also gets reset.
+
+So this is how mongodb derives
+
+the winning plan and how it stores it
+
+
+
+
+
+
+
+__________________________________________________________New Multi Key Indexes_______________________________________________________________
+
+
+
+
+
+
+
+
+
+
+We can create an index using the array key too
+
+
+
+
+
+
+
+
+contactData> db.contacts.insertOne({name:"Max",hobbies:["Cooking","Sports"],addresses:[{street:"Main Street"},{street:"Second Street"}]})
+{
+  acknowledged: true,
+  insertedId: ObjectId("6283b6f30011ae979359282f")
+}
+contactData> db.contacts.find().count();
+1
+contactData> 
+
+contactData> db.contacts.find();
+[
+  {
+    _id: ObjectId("6283b6f30011ae979359282f"),
+    name: 'Max',
+    hobbies: [ 'Cooking', 'Sports' ],
+    addresses: [ { street: 'Main Street' }, { street: 'Second Street' } ]
+  }
+]
+contactData> db.contacts.createIndex({hobbies:1})
+hobbies_1
+contactData> db.contacts.find({hobbies:"Sports"});
+[
+  {
+    _id: ObjectId("6283b6f30011ae979359282f"),
+    name: 'Max',
+    hobbies: [ 'Cooking', 'Sports' ],
+    addresses: [ { street: 'Main Street' }, { street: 'Second Street' } ]
+  }
+]
+contactData> db.contacts.explain("executionStats").find({hobbies:"Sports"});
+{
+  explainVersion: '1',
+  queryPlanner: {
+    namespace: 'contactData.contacts',
+    indexFilterSet: false,
+    parsedQuery: { hobbies: { '$eq': 'Sports' } },
+    maxIndexedOrSolutionsReached: false,
+    maxIndexedAndSolutionsReached: false,
+    maxScansToExplodeReached: false,
+    winningPlan: {
+      stage: 'FETCH',
+      inputStage: {
+        stage: 'IXSCAN',
+        keyPattern: { hobbies: 1 },
+        indexName: 'hobbies_1',
+        isMultiKey: true,
+        multiKeyPaths: { hobbies: [ 'hobbies' ] },
+        isUnique: false,
+        isSparse: false,
+        isPartial: false,
+        indexVersion: 2,
+        direction: 'forward',
+        indexBounds: { hobbies: [ '["Sports", "Sports"]' ] }
+      }
+    },
+    rejectedPlans: []
+  },
+  executionStats: {
+    executionSuccess: true,
+    nReturned: 1,
+    executionTimeMillis: 0,
+    totalKeysExamined: 1,
+    totalDocsExamined: 1,
+    executionStages: {
+      stage: 'FETCH',
+      nReturned: 1,
+      executionTimeMillisEstimate: 0,
+      works: 2,
+      advanced: 1,
+      needTime: 0,
+      needYield: 0,
+      saveState: 0,
+      restoreState: 0,
+      isEOF: 1,
+      docsExamined: 1,
+      alreadyHasObj: 0,
+      inputStage: {
+        stage: 'IXSCAN',
+        nReturned: 1,
+        executionTimeMillisEstimate: 0,
+        works: 2,
+        advanced: 1,
+        needTime: 0,
+        needYield: 0,
+        saveState: 0,
+        restoreState: 0,
+        isEOF: 1,
+        keyPattern: { hobbies: 1 },
+        indexName: 'hobbies_1',
+        isMultiKey: true,
+        multiKeyPaths: { hobbies: [ 'hobbies' ] },
+        isUnique: false,
+        isSparse: false,
+        isPartial: false,
+        indexVersion: 2,
+        direction: 'forward',
+        indexBounds: { hobbies: [ '["Sports", "Sports"]' ] },
+        keysExamined: 1,
+        seeks: 1,
+        dupsTested: 1,
+        dupsDropped: 0
+      }
+    }
+  },
+  command: {
+    find: 'contacts',
+    filter: { hobbies: 'Sports' },
+    '$db': 'contactData'
+  },
+  serverInfo: {
+    host: 'jithin-NKi511TL165S',
+    port: 27017,
+    version: '5.0.6',
+    gitVersion: '212a8dbb47f07427dae194a9c75baec1d81d9259'
+  },
+  serverParameters: {
+    internalQueryFacetBufferSizeBytes: 104857600,
+    internalQueryFacetMaxOutputDocSizeBytes: 104857600,
+    internalLookupStageIntermediateDocumentMaxSizeBytes: 104857600,
+    internalDocumentSourceGroupMaxMemoryBytes: 104857600,
+    internalQueryMaxBlockingSortMemoryUsageBytes: 104857600,
+    internalQueryProhibitBlockingMergeOnMongoS: 0,
+    internalQueryMaxAddToSetBytes: 104857600,
+    internalDocumentSourceSetWindowFieldsMaxMemoryBytes: 104857600
+  },
+  ok: 1
+}
+contactData> 
+
+
+
+Here the isMultiKey is true since its an array
+
+
+
+
+
+
+
+
+
+
+
+the interesting thing is if I explain this with execution stats, I see that the winning plan was an
+
+index scan and we see that there, isMultiKey is set to true for my hobbies index. Mongodb treats
+
+this as a multikey index because it is an index on an array of values and technically, multikey indexes
+
+are working like normal indexes but they are stored up differently.
+
+What mongodb does is it pulls out all the values in your index key,
+
+so in hobbies in my case here, so it pulls out all the values in the array I stored in there and stores
+
+them as separate elements in an index.
+
+This of course means that multikey indexes for a lot of documents are bigger than single field indexes
+
+because if every document has an array with let's say four values on average and you have a thousand
+
+documents and that array field is what you index, you would store four thousand elements because four
+
+times one thousand.
+
+So this is something to keep in mind,
+
+multikey indexes are possible but typically are also bigger,
+
+doesn't mean you shouldn't use them.
+
+If you typically query for an array and the value in an array,
+
+
+
+
+
+BUt if we create index for Adresses which contains the array of objects,Then it will be using collscan for the query
+
+contactData> db.contacts.createIndex({addresses:1})
+addresses_1
+contactData> db.contacts.explain("executionStats").find({"addresses.street":"Second Street"});
+{
+  explainVersion: '1',
+  queryPlanner: {
+    namespace: 'contactData.contacts',
+    indexFilterSet: false,
+    parsedQuery: { 'addresses.street': { '$eq': 'Second Street' } },
+    maxIndexedOrSolutionsReached: false,
+    maxIndexedAndSolutionsReached: false,
+    maxScansToExplodeReached: false,
+    winningPlan: {
+      stage: 'COLLSCAN',
+      filter: { 'addresses.street': { '$eq': 'Second Street' } },
+      direction: 'forward'
+    },
+    rejectedPlans: []
+  },
+  executionStats: {
+    executionSuccess: true,
+    nReturned: 1,
+    executionTimeMillis: 0,
+    totalKeysExamined: 0,
+    totalDocsExamined: 1,
+    executionStages: {
+      stage: 'COLLSCAN',
+      filter: { 'addresses.street': { '$eq': 'Second Street' } },
+      nReturned: 1,
+      executionTimeMillisEstimate: 0,
+      works: 3,
+      advanced: 1,
+      needTime: 1,
+      needYield: 0,
+      saveState: 0,
+      restoreState: 0,
+      isEOF: 1,
+      direction: 'forward',
+      docsExamined: 1
+    }
+  },
+  command: {
+    find: 'contacts',
+    filter: { 'addresses.street': 'Second Street' },
+    '$db': 'contactData'
+  },
+  serverInfo: {
+    host: 'jithin-NKi511TL165S',
+    port: 27017,
+    version: '5.0.6',
+    gitVersion: '212a8dbb47f07427dae194a9c75baec1d81d9259'
+  },
+  serverParameters: {
+    internalQueryFacetBufferSizeBytes: 104857600,
+    internalQueryFacetMaxOutputDocSizeBytes: 104857600,
+    internalLookupStageIntermediateDocumentMaxSizeBytes: 104857600,
+    internalDocumentSourceGroupMaxMemoryBytes: 104857600,
+    internalQueryMaxBlockingSortMemoryUsageBytes: 104857600,
+    internalQueryProhibitBlockingMergeOnMongoS: 0,
+    internalQueryMaxAddToSetBytes: 104857600,
+    internalDocumentSourceSetWindowFieldsMaxMemoryBytes: 104857600
+  },
+  ok: 1
+}
+contactData> 
+
+
+
+
+
+The reason for that is that our index of course holds the whole documents and not the fields of the
+
+documents,
+
+so mongodb does not go so far to pull out the elements of an array and then pull out all field
+
+values of a nested document
+
+that array might hold.
+
+So our index would only get used if I were not looking for the street in the addresses
+
+I have in that array but if I were looking for addresses holding some document,
+
+so if I were looking for addresses where street is Main Street, if I were looking for that, you see it
+
+
+
+
+like
+
+contactData> db.contacts.explain("executionStats").find({addresses:{street:"Second Street"}});
+
+or 
+
+contactData> db.contacts.explain("executionStats").find({addresses:"Second Street"});
+{
+  explainVersion: '1',
+  queryPlanner: {
+    namespace: 'contactData.contacts',
+    indexFilterSet: false,
+    parsedQuery: { addresses: { '$eq': 'Second Street' } },
+    maxIndexedOrSolutionsReached: false,
+    maxIndexedAndSolutionsReached: false,
+    maxScansToExplodeReached: false,
+    winningPlan: {
+      stage: 'FETCH',
+      inputStage: {
+        stage: 'IXSCAN',
+        keyPattern: { addresses: 1 },
+        indexName: 'addresses_1',
+        isMultiKey: true,
+        multiKeyPaths: { addresses: [ 'addresses' ] },
+        isUnique: false,
+        isSparse: false,
+        isPartial: false,
+        indexVersion: 2,
+        direction: 'forward',
+        indexBounds: { addresses: [ '["Second Street", "Second Street"]' ] }
+      }
+    },
+    rejectedPlans: []
+  },
+  executionStats: {
+    executionSuccess: true,
+    nReturned: 0,
+    executionTimeMillis: 0,
+    totalKeysExamined: 0,
+    totalDocsExamined: 0,
+    executionStages: {
+      stage: 'FETCH',
+      nReturned: 0,
+      executionTimeMillisEstimate: 0,
+      works: 1,
+      advanced: 0,
+      needTime: 0,
+      needYield: 0,
+      saveState: 0,
+      restoreState: 0,
+      isEOF: 1,
+      docsExamined: 0,
+      alreadyHasObj: 0,
+      inputStage: {
+        stage: 'IXSCAN',
+        nReturned: 0,
+        executionTimeMillisEstimate: 0,
+        works: 1,
+        advanced: 0,
+        needTime: 0,
+        needYield: 0,
+        saveState: 0,
+        restoreState: 0,
+        isEOF: 1,
+        keyPattern: { addresses: 1 },
+        indexName: 'addresses_1',
+        isMultiKey: true,
+        multiKeyPaths: { addresses: [ 'addresses' ] },
+        isUnique: false,
+        isSparse: false,
+        isPartial: false,
+        indexVersion: 2,
+        direction: 'forward',
+        indexBounds: { addresses: [ '["Second Street", "Second Street"]' ] },
+        keysExamined: 0,
+        seeks: 1,
+        dupsTested: 0,
+        dupsDropped: 0
+      }
+    }
+  },
+  command: {
+    find: 'contacts',
+    filter: { addresses: 'Second Street' },
+    '$db': 'contactData'
+  },
+  serverInfo: {
+    host: 'jithin-NKi511TL165S',
+    port: 27017,
+    version: '5.0.6',
+    gitVersion: '212a8dbb47f07427dae194a9c75baec1d81d9259'
+  },
+  serverParameters: {
+    internalQueryFacetBufferSizeBytes: 104857600,
+    internalQueryFacetMaxOutputDocSizeBytes: 104857600,
+    internalLookupStageIntermediateDocumentMaxSizeBytes: 104857600,
+    internalDocumentSourceGroupMaxMemoryBytes: 104857600,
+    internalQueryMaxBlockingSortMemoryUsageBytes: 104857600,
+    internalQueryProhibitBlockingMergeOnMongoS: 0,
+    internalQueryMaxAddToSetBytes: 104857600,
+    internalDocumentSourceSetWindowFieldsMaxMemoryBytes: 104857600
+  },
+  ok: 1
+}
+
+
+Its an IXSCAN
+
+
+
+
+now you see it uses an index scan for this and it is a multikey index,
+
+so you can also use an index on a field in an embedded document which is part of an array
+
+with that multikey feature. You should just be aware that of course using multi multikey features
+
+on a single collection will quickly lead to some performance issues with rights
+
+because for every new document you add, all these multikey indexes have to be updated
+
+and if you add a new document with 10 values in that array which you happen to store in a multikey
+
+index, then these 10 new entries need to be added to the index registry
+
+and if you then have four or five of these multikey indexes per document, well then you quickly are
+
+in a low performance world.
+
+
+
+
+
+
+Still multikey index is super helpful if you have queries that regularly target array values or even
+
+nested values or values in an embedded document in arrays.
+
+There are a couple of restrictions or one important restriction to be precise when using multikey indexes
+
+and that is that if you add an index, a multikey index and you add it as part of a compound index, that
+
+is generally possible,
+
+I can add name in ascending order and name is not an array, it's just a single field and I can then add
+
+hobbies like this,
+
+this works. However what won't work is that I say I want have a compound index made up of two or more
+
+multikey indexes,
+
+so addresses one and hobbies one will not work because you can't index parallel arrays.
+
+
+contactData> db.contacts.createIndex({addresses:1,hobbies:1})
+MongoServerError: Index build failed: 3cd33fac-807a-4618-889c-97b75a257b25: Collection contactData.contacts ( 24126ca8-4f53-4118-819b-e9428a9bb9e0 ) :: caused by :: cannot index parallel arrays [hobbies] [addresses]
+contactData> 
+
+
+The reason for that is simple,
+
+mongodb would have to store the cartesian product of the values of both indexes, of both arrays,
+
+so it would have to pull out all the addresses and for every address, it would have to store all the
+
+hobbies.
+
+So if you have two addresses and five hobbies, you already have to store 10 values and that of course
+
+becomes even worse the more values you have in addresses,
+
+so that is why this is not possible.
+
+Compound indexes with multikey indexes are possible as you see here but only with one multikey index,
+
+so with one array, not with multiple arrays. You can have multiple multikey indexes as you can see here
+
+in separate indexes
+
+but in one and the same index, only one array can be included.
+
+
+
+
+
+____________________________________________Understanding Text Indexes___________________________________________________
+
+
+
+
+
+Speaking of multikey indexes, there is a special kind of multikey index, a text index.
+
+Let's say we have this text stored in a field in our document, could be the product description of a
+
+product.
+
+
+  "This product is a must buy for all fans of modern fiction"
+  
+  			| |
+  			| |
+  			\./
+  			 .
+                   TEXT INDEX
+                   
+     [product] [must] [buy] [fans] [modern] [fiction]
+
+
+
+
+Now if you want to search that text, we saw before that we can use the regex operator and that
+
+is however not a really great way of searching text,
+
+it offers a very low performance. Better is to use a text index and a text index is a special kind of
+
+index supported by mongodb which will essentially turn this text into an array of single words and
+
+it will store it as such,
+
+so it stores it essentially as if you had an array of these single words, one extra thing it does for
+
+you is it removes all the stop words and it stems all words, so that you have an array of keywords essentially
+
+and things like is or the or a are not stored there because that is typically something you don't search
+
+for because it's all over the place,
+
+the keywords are one matter for text searches typically.
+
+
+
+
+
+
+contactData> db.products.insertMany([{title:"A book",description:"This is a book"},{title:"A Pen",description:"This is a mus buy product"}])
+{
+  acknowledged: true,
+  insertedIds: {
+    '0': ObjectId("6283be360011ae9793592830"),
+    '1': ObjectId("6283be360011ae9793592831")
+  }
+}
+contactData> db.products.find().pretty()
+[
+  {
+    _id: ObjectId("6283be360011ae9793592830"),
+    title: 'A book',
+    description: 'This is a book'
+  },
+  {
+    _id: ObjectId("6283be360011ae9793592831"),
+    title: 'A Pen',
+    description: 'This is a mus buy product'
+  }
+]
+contactData> db.products.createIndex({description:1})
+description_1
+
+
+
+
+you could do this but then it would simply index this as a single field index and you could then search
+
+for exactly this text to utilize the index but not for individual keywords. You need the text index
+
+so that mongodb splits this up,
+
+so using this will not work so
+
+
+
+contactData> db.products.find({description:"This is a book"})
+[
+  {
+    _id: ObjectId("6283be360011ae9793592830"),
+    title: 'A book',
+    description: 'This is a book'
+  }
+]
+contactData> db.products.find({description:"book"})
+
+contactData> 
+
+
+
+
+
+
+
+
+
+contactData> db.products.createIndex({description:1})
+description_1
+contactData> db.products.explain().find({description:"This is a book"})
+{
+  explainVersion: '1',
+  queryPlanner: {
+    namespace: 'contactData.products',
+    indexFilterSet: false,
+    parsedQuery: { description: { '$eq': 'This is a book' } },
+    queryHash: 'C89C35FA',
+    planCacheKey: '0E76FB12',
+    maxIndexedOrSolutionsReached: false,
+    maxIndexedAndSolutionsReached: false,
+    maxScansToExplodeReached: false,
+    winningPlan: {
+      stage: 'FETCH',
+      inputStage: {
+        stage: 'IXSCAN',
+        keyPattern: { description: 1 },
+        indexName: 'description_1',
+        isMultiKey: false,
+        multiKeyPaths: { description: [] },
+        isUnique: false,
+        isSparse: false,
+        isPartial: false,
+        indexVersion: 2,
+        direction: 'forward',
+        indexBounds: { description: [ '["This is a book", "This is a book"]' ] }
+      }
+    },
+    rejectedPlans: []
+  },
+  command: {
+    find: 'products',
+    filter: { description: 'This is a book' },
+    '$db': 'contactData'
+  },
+  serverInfo: {
+    host: 'jithin-NKi511TL165S',
+    port: 27017,
+    version: '5.0.6',
+    gitVersion: '212a8dbb47f07427dae194a9c75baec1d81d9259'
+  },
+  serverParameters: {
+    internalQueryFacetBufferSizeBytes: 104857600,
+    internalQueryFacetMaxOutputDocSizeBytes: 104857600,
+    internalLookupStageIntermediateDocumentMaxSizeBytes: 104857600,
+    internalDocumentSourceGroupMaxMemoryBytes: 104857600,
+    internalQueryMaxBlockingSortMemoryUsageBytes: 104857600,
+    internalQueryProhibitBlockingMergeOnMongoS: 0,
+    internalQueryMaxAddToSetBytes: 104857600,
+    internalDocumentSourceSetWindowFieldsMaxMemoryBytes: 104857600
+  },
+  ok: 1
+}
+
+
+
+if we craete index like this 
+
+
+
+
+contactData> db.products.createIndex({description:"text"})
+description_text
+contactData> 
+
+
+
+contactData> db.products.find({$text:{$search:"awesome"}})
+
+contactData> db.products.find({$text:{$search:"book"}})
+[
+  {
+    _id: ObjectId("6283be360011ae9793592830"),
+    title: 'A book',
+    description: 'This is a book'
+  }
+]
+contactData> 
+
+
+
+
+
+
+
+
+
+This is the data we have in there in general
+
+and now let's use products and find and
+
+here
+
+let's now use the special $text key
+
+and search and for that, you pass a document as a value for $text and there, you need
+
+$search.
+
+Now you might be wondering why do I not need to specify the field in which I want to search,
+
+why don't I have to add description,
+
+instead we just add hey I want to search for some text.
+
+The reason for that is that you may only have one text index per collection because text indexes are
+
+pretty expensive as you can imagine,
+
+if you have a lot of long text that has to be split up, you don't want to do this like 10 times per
+
+collection and therefore, you only have one text index where this could look into.
+
+You can actually merge multiple fields into one text index as I will show you in a second and you will
+
+then look through all of them automatically
+
+but you can only do it like this,
+
+you can't say hey I want to search for text and description like this, this won't work.
+
+So now for search, we simply enter the words we want to look for
+
+like awesome and the casing is not important here by the way,
+
+everything is stored as lowercase.
+
+
+
+
+
+contactData> db.products.find({$text:{$search:"mus ss buy"}})
+[
+  {
+    _id: ObjectId("6283be360011ae9793592831"),
+    title: 'A Pen',
+    description: 'This is a mus buy product'
+  }
+]
+contactData> 
+
+
+It will returns the documents that have the description which contains the word mus or ss or buy
+
+
+
+
+
+
+
+
+
+
+
+____________________________________________Text Indexes and Sorting___________________________________________________
+
+
+
+mongodb does something interesting or special when managing such a text index or when searching
+
+for text in a text index, we can find out how it scores its results and let's first of all find out with
+
+the help of projection.
+
+So here I'll add a second argument to my find method to project the results and I will simply output
+
+a score field here
+
+where I can use a special meta operator to add text score. This is a meta field added or managed by mongodb
+
+for text searches
+
+here with the $text
+
+operator on a text index.
+
+
+
+
+
+
+
+
+So here I'll add a second argument to my find method to project the results and I will simply output
+
+a score field here
+
+
+
+
+where I can use a special meta operator to add text score. This is a meta field added or managed by mongodb
+
+
+
+
+contactData> db.products.find({$text:{$search:" buy"}}).pretty()
+[
+  {
+    _id: ObjectId("6283be360011ae9793592831"),
+    title: 'A Pen',
+    description: 'This is a mus buy product'
+  }
+]
+contactData> db.products.find({$text:{$search:" buy"}},{score:{$meta:"textScore"}}).pretty()
+[
+  {
+    _id: ObjectId("6283be360011ae9793592831"),
+    title: 'A Pen',
+    description: 'This is a mus buy product',
+    score: 0.6666666666666666
+  }
+]
+
+
+
+for text searches
+
+here with the $text
+
+operator on a text index.
+
+If I do this, you see the score.
+
+mongodb assigned to a result
+
+and here, it even automatically sort it by that score now as you can tell.
+
+So here we see that the score is much higher for T-shirt and awesome than for just awesome and it automatically
+
+sort it for us here
+
+but if we want to make sure, we can of course also add sort here and we can then sort by score where
+
+score is a document with $meta and then textScore written like this as a text and I should add
+
+a dot in front of pretty. And now, it's definitely sorted,
+
+it was before but now we enforce sorting by looking at that meta text score which mongodb manages
+
+for us.
+
+
+contactData> db.products.find({$text:{$search:" buy"}},{score:{$meta:"textScore"}}).sort({score:{$meta:"textScore"}}).pretty()
+[
+  {
+    _id: ObjectId("6283be360011ae9793592831"),
+    title: 'A Pen',
+    description: 'This is a mus buy product',
+    score: 0.6666666666666666
+  }
+]
+
+
+
+
+______________________________________Creating Combined Text indexes________________________________________________________
+
+
+
+
+
+
+
+
+
+
+
+
+
+contactData> db.products.getIndexes();
+[
+  { v: 2, key: { _id: 1 }, name: '_id_' },
+  {
+    v: 2,
+    key: { _fts: 'text', _ftsx: 1 },
+    name: 'description_text',
+    weights: { description: 1 },
+    default_language: 'english',
+    language_override: 'language',
+    textIndexVersion: 3
+  }
+]
+
+
+contactData> db.products.createIndex({title:"text"})
+MongoServerError: An equivalent index already exists with a different name and options. Requested index: { v: 2, key: { _fts: "text", _ftsx: 1 }, name: "title_text", weights: { title: 1 }, default_language: "english", language_override: "language", textIndexVersion: 3 }, existing index: { v: 2, key: { _fts: "text", _ftsx: 1 }, name: "description_text", weights: { description: 1 }, default_language: "english", language_override: "language", textIndexVersion: 3 }
+contactData> 
+
+
+
+
+Now this is a bit hard to read but in the end, it's tried to create the index which we already have because
+
+you can only have one text index.
+
+
+
+
+What we can do though is we can merge the text of multiple fields together into one text index,
+
+for this I first of all need to drop my existing text index and now dropping text index is a bit harder,
+
+you can't do title text,
+
+this doesn't work as you can see but what you can do is you can drop it by the name, by the index name
+
+so you can copy that index name you have up there with get indexes and then you can simply drop it by the
+
+
+
+
+Dropping the text index
+
+contactData> db.products.dropIndex("description_text")
+{ nIndexesWas: 2, ok: 1 }
+contactData> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+we can create a text index again
+
+but now we can actually merge together multiple fields by simply adding them like this, description text.
+
+
+contactData> db.products.createIndex({title:"text",description:"text"})
+title_text_description_text
+contactData> 
+
+
+contactData> db.products.getIndexes();
+[
+  { v: 2, key: { _id: 1 }, name: '_id_' },
+  {
+    v: 2,
+    key: { _fts: 'text', _ftsx: 1 },
+    name: 'title_text_description_text',
+    weights: { description: 1, title: 1 },
+    default_language: 'english',
+    language_override: 'language',
+    textIndexVersion: 3
+  }
+]
+contactData> 
+
+
+
+
+Now there is still will only be one text index but it will contain the keywords of both the title and
+
+the description field, so if I hit
+
+enter, this works and now I can of course also search for items we have in a title.
+
+So if I find one, you see for example I could search for book because I also have that here,
+
+now we won't see a difference because we had book there before but now we will search for both. And I
+
+can prove this by simply inserting a new product
+
+with a title of a ship and a description of floats perfectly and as you see, we have ship only in the title,
+
+not in the description.
+
+
+
+contactData> db.products.find({$text:{$search:"Pen"}}).pretty()
+[
+  {
+    _id: ObjectId("6283be360011ae9793592831"),
+    title: 'A Pen',
+    description: 'This is a mus buy product'
+  }
+]
+contactData> 
+
+
+
+
+______________________________________Using Text indexes to exclude words___________________________--
+
+
+
+
+Now let's say I only want to find awesome products which are not T-shirts, so I could do this by adding
+
+awesome and then minus T-shirt. If I do this I only find the book because the minus in front of a word
+
+
+contactData> db.products.find({$text:{$search:"Pen -buy"}}).pretty()
+
+
+
+means that this word should be excluded
+
+and this is really helpful of course because it allows you to run narrowed down queries like this one
+
+where you only find awesome products which are not T-shirts or which at least don't have T-shirt in
+
+the title or in the description.
+
+
+
+
+
+
+______________________________________Setting the default language and using widgets_____________________________-
+
+
+
+
+contactData> db.products.createIndex({title:"text",description:"text"},{default_language:"german"})
+title_text_description_text
+contactData> db.products.getIndexes();
+[
+  { v: 2, key: { _id: 1 }, name: '_id_' },
+  {
+    v: 2,
+    key: { _fts: 'text', _ftsx: 1 },
+    name: 'title_text_description_text',
+    weights: { description: 1, title: 1 },
+    default_language: 'german',
+    language_override: 'language',
+    textIndexVersion: 3
+  }
+]
+contactData> 
+
+I can manually assign default language here to a new value.
+
+You saw earlier that the default language it assumed was English and if that is the case,
+
+
+
+Adding weight
+
+contactData> db.products.createIndex({title:"text",description:"text"},{default_language:"german",weights:{title:1,description:10}})
+title_text_description_text
+contactData> 
+
+
+
+
+
+______________________________________BUilding indexes___________________________________________________________
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#############################################  A G G R E G A T I O N    F R A M E W O  R K   #######################################################
+
+
+
+
+Retrieving Data Efficiently and in a structured way
+
+
+
+_____________________________________MOdule Introduction________________________________________________
+
+
+
+Now of course we talked about the fact that you want to store the data in your database in the format
+
+you need it in in your application
+
+but this is not always possible.
+
+
+You might have an online shop where the sellers can also generate detailed reports on their sales data,
+
+now it will probably be hard to store the data in exactly that format because these reports might be
+
+customizable by the sellers or let's say you have a customer facing application on which your data scientists
+
+in your company also work, of course you will gear your data towards your customers and you will
+
+store it in a way that allows your customers to quickly interact with your application and your data scientists
+
+might not be that important for you from a data modeling perspective
+
+therefore, hence you also need more complex data transformation capabilities.
+
+
+
+
+
+
+
+_____________________________________What is aggregation framework________________________________________
+
+
+
+So what is the aggregation framework? The aggregation framework in its core is just an alternative to
+
+the find method you could say. You have your collection and now the aggregation framework is all about
+
+building a pipeline of steps that runs on the data that is retrieved from your collection and then gives
+
+you the output in the form you needed
+
+
+	    Collecton
+
+		|
+		|	
+	    {$match}
+		|
+		|
+	     {$sort}
+		|
+		|
+	    {$group}
+		|
+		|
+	   {$project}
+		|
+		|
+		|
+     Output (List of document)
+		
+		
+		
+		
+		
+		
+a lot of different steps you can combine as you want.
+
+You can reuse certain stages,
+
+
+
+
+
+
+______________________________________Using the aggreagtion Framework________________________________________
+
+
+
+
+
+
+
+The aggregate method takes an array and it takes an array because we define
+
+a series of steps that should be run on our data.
+
+The first step will receive the entire data right from the collection you could say
+
+and the next step can then do something with the data returned by the first step and so on.
+
+
+
+
+Now one important piece of information, aggregate does not go ahead, fetch all the data from the database
+
+and then give it to you and then do something on it,
+
+of course the first step runs on the database and can take advantage of indexes,
+
+so if you filter in the first step or you sort there, you can take advantage of your indexes,
+
+so you don't have to fetch all the documents just because you're using aggregate. Aggregate as find executes
+
+on the mongodb server and therefore can take advantages of things like indexes
+
+and it will.
+
+
+
+
+
+The first step is then a document, every step is a document
+
+I should say. Now the first step here could be a match phase and match essentially is just a filtering step,
+
+so you define some criteria on which you want to filter your data in that persons collection.
+
+Now you can filter here, in the same way you can filter in find,
+
+
+
+
+
+
+
+analytics> db.persons.aggregate([{$match:{gender:"male"}}])
+
+
+
+Now we can already finish our pipeline at this point if we want to,
+
+we can close the square brackets around our stages and close the parentheses of aggregate and I get
+
+back a cursor here,
+
+
+
+
+
+This was of course only one step, the match step and the match step is not that exciting because there,
+
+we as I said query it exactly the same way we can query in the find method or we filter in the same
+
+way I should say. More interesting is the group stage\\\
+
+
+
+
+
+
+
+
+
+_______________________________________________Understanding the group Stage__________________________________________
+
+
+
+
+
+So we saw the match stage in the last lecture and match is essentially just taking a filter as you
+
+define it as an argument to the find method.
+
+
+the group stage, the group stage allows you to well group your data by a certain
+
+field or by multiple fields
+
+
+
+In group, we need to define a couple of parameters,
+
+the first one always is _id
+
+
+
+Now _id defines by which fields you want to group
+
+and now we will use _id in a way we haven't seen it before,
+
+the value for _id will be a document.
+
+Thus far, we always used an objectid, a string or maybe a number but we never use the document
+
+but just as with any other field, you can assign a document to _id.
+
+It's just not that common to be honest
+
+but for the group method here, for the group stage, you often see that syntax because that will be interpreted
+
+in a special way and it will basically allow you to define multiple fields by which you want to group.
+
+
+
+
+
+
+db.persons.aggregate([
+	
+	{$match: {gender:"male"} },
+	{$group: {_id:{ state: "$location.state" } ,totalPersons:{ $sum:1 } } }
+	
+	])
+
+
+
+
+state for example and then $location.state. The dollar sign is important here because
+
+it tells mongodb that I'm referring to a field of our document which is passed into the group stage,
+
+so I'm referring to a field of this document,
+
+the location field and then I can access a nested field just with a dot, here
+
+no dollar sign is required. So this should now group our results by the state.
+
+
+
+
+analytics> db.persons.aggregate([
+... 
+... 	{$match: {gender:"male"} },
+... 	{$group: {_id:{ state: "$location.state" } ,totalPersons:{ $sum:1 } } }
+... 
+... 	])
+Browserslist: caniuse-lite is outdated. Please run:
+  npx browserslist@latest --update-db
+  Why you should do it regularly: https://github.com/browserslist/browserslist#browsers-data-updating
+[
+  { _id: { state: 'waikato' }, totalPersons: 2 },
+  { _id: { state: 'otago' }, totalPersons: 11 },
+  { _id: { state: 'southern savonia' }, totalPersons: 5 },
+  { _id: { state: 'maryland' }, totalPersons: 3 },
+  { _id: { state: 'carlow' }, totalPersons: 5 },
+  { _id: { state: 'hedmark' }, totalPersons: 8 },
+  { _id: { state: 'new mexico' }, totalPersons: 2 },
+  { _id: { state: 'rheinland-pfalz' }, totalPersons: 10 },
+  { _id: { state: 'alpes-maritimes' }, totalPersons: 5 },
+  { _id: { state: 'کرمانشاه' }, totalPersons: 3 },
+  { _id: { state: 'bartın' }, totalPersons: 2 },
+  { _id: { state: 'utah' }, totalPersons: 7 },
+  { _id: { state: 'fingal' }, totalPersons: 7 },
+  { _id: { state: 'لرستان' }, totalPersons: 5 },
+  { _id: { state: 'aust-agder' }, totalPersons: 6 },
+  { _id: { state: 'edirne' }, totalPersons: 3 },
+  { _id: { state: 'northern ostrobothnia' }, totalPersons: 10 },
+  { _id: { state: 'rio grande do norte' }, totalPersons: 5 },
+  { _id: { state: 'savoie' }, totalPersons: 2 },
+  { _id: { state: 'drenthe' }, totalPersons: 10 }
+]
+Type "it" for more
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+___________________________________________________Diving Deeper into the Group Stage____________________________________________
+
+
+
+Sorting is the next pipeline operation after grouping,We can not sort the result before grouing ,we can use sorting that for other fields other than the new fileds that we  got from pipeline result(ie, here its totalPersons )
+
+ie sorting can be done based on the output from the previous state
+
+
+
+
+
+db.persons.aggregate([
+	
+	{$match: {gender:"female"} },
+	{$group: {_id:{ state: "$location.state" } ,totalPersons:{ $sum:1 } } },
+	{$sort: { totalPersons:-1 } }
+	
+	])
+
+
+
+
+
+
+
+
+
+
+
+
+
+analytics> db.persons.aggregate([ { $match: { gender: "female" } }, { $group: { _id: { state: "$location.state" }, totalPersons: { $sum: 1 } } }, { $sort: { totalPersons: -1 } }])
+[
+  { _id: { state: 'midtjylland' }, totalPersons: 33 },
+  { _id: { state: 'nordjylland' }, totalPersons: 27 },
+  { _id: { state: 'new south wales' }, totalPersons: 24 },
+  { _id: { state: 'syddanmark' }, totalPersons: 24 },
+  { _id: { state: 'australian capital territory' }, totalPersons: 24 },
+  { _id: { state: 'south australia' }, totalPersons: 22 },
+  { _id: { state: 'danmark' }, totalPersons: 21 },
+  { _id: { state: 'hovedstaden' }, totalPersons: 21 },
+  { _id: { state: 'queensland' }, totalPersons: 20 },
+  { _id: { state: 'overijssel' }, totalPersons: 20 },
+  { _id: { state: 'sjælland' }, totalPersons: 19 },
+  { _id: { state: 'nova scotia' }, totalPersons: 17 },
+  { _id: { state: 'canterbury' }, totalPersons: 16 },
+  { _id: { state: 'northwest territories' }, totalPersons: 16 },
+  { _id: { state: 'gelderland' }, totalPersons: 16 },
+  { _id: { state: 'yukon' }, totalPersons: 16 },
+  { _id: { state: 'bayern' }, totalPersons: 15 },
+  { _id: { state: 'tasmania' }, totalPersons: 15 },
+  { _id: { state: 'northern territory' }, totalPersons: 15 },
+  { _id: { state: 'victoria' }, totalPersons: 14 }
+]
+Type "it" for more
+analytics> it
+[
+  { _id: { state: 'zeeland' }, totalPersons: 14 },
+  { _id: { state: 'limburg' }, totalPersons: 14 },
+  { _id: { state: 'northern savonia' }, totalPersons: 14 },
+  { _id: { state: 'nunavut' }, totalPersons: 14 },
+  { _id: { state: 'noord-brabant' }, totalPersons: 14 },
+  { _id: { state: 'western australia' }, totalPersons: 13 },
+  { _id: { state: 'british columbia' }, totalPersons: 13 },
+  { _id: { state: 'marlborough' }, totalPersons: 12 },
+  { _id: { state: 'ontario' }, totalPersons: 12 },
+  { _id: { state: 'brandenburg' }, totalPersons: 12 },
+  { _id: { state: 'hamburg' }, totalPersons: 12 },
+  { _id: { state: 'castilla y león' }, totalPersons: 12 },
+  { _id: { state: 'uusimaa' }, totalPersons: 12 },
+  { _id: { state: 'utrecht' }, totalPersons: 12 },
+  { _id: { state: 'wellington' }, totalPersons: 12 },
+  { _id: { state: 'prince edward island' }, totalPersons: 11 },
+  { _id: { state: 'mecklenburg-vorpommern' }, totalPersons: 11 },
+  { _id: { state: 'thüringen' }, totalPersons: 11 },
+  { _id: { state: 'são paulo' }, totalPersons: 11 },
+  { _id: { state: 'saskatchewan' }, totalPersons: 11 }
+]
+Type "it" for more
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+we see the sorting works and the interesting thing here really is that the sorting was done on the
+
+output of our previous stage,
+
+so on the output of the group stage. And I hope this already shows you that you have a lot of power with
+
+these tools already because this is essentially a kind of operation we couldn't do with the normal find
+
+method because there, we can't group and then sort on the result of our group. We would have to do that in
+
+the client side code with just find, well with aggregate we can run it on the mongodb server and
+
+then simply get back the data in the client that we need in our client to work with.
+
+
+
+
+
+
+
+
+
+_________________________________________________Working with Projection_______________________________________________________
+
+
+Now let's have a look at a different pipeline stage that allows us to transform every document instead of grouping
+
+multiple together
+
+and that will be the project stage.
+
+Now we already know projection from the find method,
+
+well as an aggregate stage, project became more powerful,
+
+
+
+Let's now start simple and not have any other set, I should say we don't do any filtering,
+
+we just want to transform every document.
+
+Then we can use the project stage and as all stages, the value for $project here is simply a document
+
+where you well configure that stage so to say
+
+and in its most simple form, project works in the same way as the projection works in the find method.
+
+So you can for example say I don't want to have the ID by setting it to zero here,
+
+
+
+db.persons.aggregate([
+	
+	{$project: { _id:0,gender:1 ,fullName:{ $concat:['$name.first',' ','$name.last']} } }
+	
+	]).pretty()
+	
+	
+	
+	Here the concat is used to concatenate the fields name.first and name.last
+	
+	we can concatenate any string values
+	
+	
+	
+
+We can also use uppercase conversion using $toUpper	
+	
+	
+analytics> db.persons.aggregate([
+... 
+... 	{$project: { _id:0,gender:1 ,fullName:{ $concat:[ {$toUpper:'$name.first' } ,' ',{$toUpper: '$name.last' }]} } }
+... 
+... 	]).pretty()
+[
+  { gender: 'female', fullName: 'پریا پارسا' },
+  { gender: 'male', fullName: 'HARVEY CHAMBERS' },
+  { gender: 'male', fullName: 'GIDEON VAN DRONGELEN' },
+  { gender: 'female', fullName: 'MAEVA WILSON' },
+  { gender: 'female', fullName: 'OLAV OEHME' },
+  { gender: 'male', fullName: 'VICTOR PEDERSEN' },
+  { gender: 'male', fullName: 'ZACHARY LO' },
+  { gender: 'male', fullName: 'ELIJAH LEWIS' },
+  { gender: 'male', fullName: 'CARL JACOBS' },
+  { gender: 'female', fullName: 'MADELEINE TILL' },
+  { gender: 'male', fullName: 'ISOLINO VIANA' },
+  { gender: 'female', fullName: 'SHONA KEMPERMAN' },
+  { gender: 'female', fullName: 'LOUISE GRAHAM' },
+  { gender: 'female', fullName: 'MESTAN KAPLANGı' },
+  { gender: 'female', fullName: 'KATIE WELCH' },
+  { gender: 'female', fullName: 'SANDRA LORENZO' },
+  { gender: 'male', fullName: 'بنیامین سالاری' },
+  { gender: 'female', fullName: 'ANDREIA ARNAUD' },
+  { gender: 'female', fullName: 'DELIA DURAND' },
+  { gender: 'female', fullName: 'AYA LILAND' }
+]
+Type "it" for more
+
+
+
+
+
+
+
+
+
+
+
+We can use More complex expressions uisign
+
+$substrCP => to find the substring
+
+$toUpper => to convert to uppercase
+
+$subtract => to subtract
+
+$strLenCP => find the length of a string
+
+
+
+
+
+analytics> db.persons.aggregate([
+... 
+... 	{
+... 		$project: {
+..... 		 _id:0,
+..... 		 gender:1 ,
+..... 		 fullName:{ 
+....... 		 	$concat:[ 
+....... 		 		{
+......... 		 			$toUpper:{$substrCP:['$name.first',0,1]} 
+......... 		 		} ,
+....... 		 		{ 
+......... 		 			$substrCP:['$name.first',1,{$subtract:[{$strLenCP:'$name.first'},1]}]
+......... 		 		} , 
+....... 		 		' ' , 
+....... 		 		{
+......... 		 			$toUpper:{$substrCP:['$name.last',0,1]} 
+......... 		 		} ,
+....... 		 		{ 
+......... 		 			$substrCP:['$name.last',1,{$subtract:[{$strLenCP:'$name.last'},1]}]
+......... 		 		}  
+....... 		 	]
+....... 		} 
+..... 	} 
+... }
+... ]).pretty()
+[
+  { gender: 'female', fullName: 'پریا پارسا' },
+  { gender: 'male', fullName: 'Harvey Chambers' },
+  { gender: 'male', fullName: 'Gideon Van drongelen' },
+  { gender: 'female', fullName: 'Maeva Wilson' },
+  { gender: 'female', fullName: 'Olav Oehme' },
+  { gender: 'male', fullName: 'Victor Pedersen' },
+  { gender: 'male', fullName: 'Zachary Lo' },
+  { gender: 'male', fullName: 'Elijah Lewis' },
+  { gender: 'male', fullName: 'Carl Jacobs' },
+  { gender: 'female', fullName: 'Madeleine Till' },
+  { gender: 'male', fullName: 'Isolino Viana' },
+  { gender: 'female', fullName: 'Shona Kemperman' },
+  { gender: 'female', fullName: 'Louise Graham' },
+  { gender: 'female', fullName: 'Mestan Kaplangı' },
+  { gender: 'female', fullName: 'Katie Welch' },
+  { gender: 'female', fullName: 'Sandra Lorenzo' },
+  { gender: 'male', fullName: 'بنیامین سالاری' },
+  { gender: 'female', fullName: 'Andreia Arnaud' },
+  { gender: 'female', fullName: 'Delia Durand' },
+  { gender: 'female', fullName: 'Aya Liland' }
+]
+Type "it" for more
+analytics> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+______________________________________
+
+
+
+
+
+
+analytics> db.persons.aggregate([
+... 
+... 	{
+... 
+... 		$project:{ 
+... 			_id:0,
+... 			name:1,
+... 			email:1,
+... 			location:{ 
+..... 				type:"Point",
+..... 				coordinates:[
+..... 					"$location.coordinates.longitude",
+..... 					"$location.coordinates.latitude"
+..... 				]
+..... 
+... 			}
+... 
+... 		}
+... 	},
+... 	{
+... 		$project: {
+..... 		 gender:1 ,
+..... 		 email:1,
+..... 		 location:1,
+..... 		 fullName:{ 
+....... 		 	$concat:[ 
+....... 		 		{
+......... 		 			$toUpper:{$substrCP:['$name.first',0,1]} 
+......... 		 		} ,
+....... 		 		{ 
+......... 		 			$substrCP:['$name.first',1,{$subtract:[{$strLenCP:'$name.first'},1]}]
+......... 		 		} , 
+....... 		 		' ' , 
+....... 		 		{
+......... 		 			$toUpper:{$substrCP:['$name.last',0,1]} 
+......... 		 		} ,
+....... 		 		{ 
+......... 		 			$substrCP:['$name.last',1,{$subtract:[{$strLenCP:'$name.last'},1]}]
+......... 		 		}  
+....... 		 	]
+....... 		} 
+..... 	} 
+... }
+... ]).pretty()
+[
+  {
+    location: { type: 'Point', coordinates: [ '34.1689', '4.6625' ] },
+    email: 'پریا.پارسا@example.com',
+    fullName: 'پریا پارسا'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '168.9462', '-22.5329' ] },
+    email: 'harvey.chambers@example.com',
+    fullName: 'Harvey Chambers'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-54.1364', '-86.1268' ] },
+    email: 'gideon.vandrongelen@example.com',
+    fullName: 'Gideon Van drongelen'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '111.3806', '-31.6359' ] },
+    email: 'maeva.wilson@example.com',
+    fullName: 'Maeva Wilson'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-67.5738', '-52.8348' ] },
+    email: 'olav.oehme@example.com',
+    fullName: 'Olav Oehme'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-31.0208', '-29.8113' ] },
+    email: 'victor.pedersen@example.com',
+    fullName: 'Victor Pedersen'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-70.2264', '76.4507' ] },
+    email: 'zachary.lo@example.com',
+    fullName: 'Zachary Lo'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-18.5996', '-42.6128' ] },
+    email: 'elijah.lewis@example.com',
+    fullName: 'Elijah Lewis'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-154.6037', '-29.6721' ] },
+    email: 'carl.jacobs@example.com',
+    fullName: 'Carl Jacobs'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-172.3753', '83.3998' ] },
+    email: 'madeleine.till@example.com',
+    fullName: 'Madeleine Till'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '101.5995', '78.8545' ] },
+    email: 'isolino.viana@example.com',
+    fullName: 'Isolino Viana'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-8.5570', '-14.4912' ] },
+    email: 'shona.kemperman@example.com',
+    fullName: 'Shona Kemperman'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '148.0944', '35.5726' ] },
+    email: 'louise.graham@example.com',
+    fullName: 'Louise Graham'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '43.9085', '25.1614' ] },
+    email: 'mestan.kaplangı@example.com',
+    fullName: 'Mestan Kaplangı'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '135.9359', '71.9851' ] },
+    email: 'katie.welch@example.com',
+    fullName: 'Katie Welch'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-83.3326', '-88.6846' ] },
+    email: 'sandra.lorenzo@example.com',
+    fullName: 'Sandra Lorenzo'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-90.9499', '21.3388' ] },
+    email: 'بنیامین.سالاری@example.com',
+    fullName: 'بنیامین سالاری'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '59.5703', '-67.6434' ] },
+    email: 'andreia.arnaud@example.com',
+    fullName: 'Andreia Arnaud'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-90.4049', '-65.0877' ] },
+    email: 'delia.durand@example.com',
+    fullName: 'Delia Durand'
+  },
+  {
+    location: { type: 'Point', coordinates: [ '-104.3451', '-88.4983' ] },
+    email: 'aya.liland@example.com',
+    fullName: 'Aya Liland'
+  }
+]
+Type "it" for more
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+analytics> db.persons.aggregate([
+... 	{
+..... 		$project:{ 
+....... 			_id:0,
+....... 			name:1,
+....... 			email:1,
+....... 			location:{ 
+......... 				type:"Point",
+......... 				coordinates:[
+......... 					{$convert:{ input: "$location.coordinates.longitude",to:'double',onError:0.0,onNull:0.0}},
+......... 					{$convert:{ input: "$location.coordinates.latitude",to:'double',onError:0.0,onNull:0.0}}
+......... 				]
+......... 
+... 			}
+... 
+... 		}
+... 	},
+... 	{
+... 		$project: {
+..... 		 gender:1 ,
+..... 		 email:1,
+..... 		 location:1,
+..... 		 fullName:{ 
+....... 		 	$concat:[ 
+....... 		 		{
+......... 		 			$toUpper:{$substrCP:['$name.first',0,1]} 
+......... 		 		} ,
+....... 		 		{ 
+......... 		 			$substrCP:['$name.first',1,{$subtract:[{$strLenCP:'$name.first'},1]}]
+......... 		 		} , 
+....... 		 		' ' , 
+....... 		 		{
+......... 		 			$toUpper:{$substrCP:['$name.last',0,1]} 
+......... 		 		} ,
+....... 		 		{ 
+......... 		 			$substrCP:['$name.last',1,{$subtract:[{$strLenCP:'$name.last'},1]}]
+......... 		 		}  
+....... 		 	]
+....... 		} 
+..... 	} 
+... }
+... ]).pretty()
+[
+  {
+    location: { type: 'Point', coordinates: [ 34.1689, 4.6625 ] },
+    email: 'پریا.پارسا@example.com',
+    fullName: 'پریا پارسا'
+  },
+  {
+    location: { type: 'Point', coordinates: [ 168.9462, -22.5329 ] },
+    email: 'harvey.chambers@example.com',
+    fullName: 'Harvey Chambers'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -54.1364, -86.1268 ] },
+    email: 'gideon.vandrongelen@example.com',
+    fullName: 'Gideon Van drongelen'
+  },
+  {
+    location: { type: 'Point', coordinates: [ 111.3806, -31.6359 ] },
+    email: 'maeva.wilson@example.com',
+    fullName: 'Maeva Wilson'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -67.5738, -52.8348 ] },
+    email: 'olav.oehme@example.com',
+    fullName: 'Olav Oehme'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -31.0208, -29.8113 ] },
+    email: 'victor.pedersen@example.com',
+    fullName: 'Victor Pedersen'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -70.2264, 76.4507 ] },
+    email: 'zachary.lo@example.com',
+    fullName: 'Zachary Lo'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -18.5996, -42.6128 ] },
+    email: 'elijah.lewis@example.com',
+    fullName: 'Elijah Lewis'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -154.6037, -29.6721 ] },
+    email: 'carl.jacobs@example.com',
+    fullName: 'Carl Jacobs'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -172.3753, 83.3998 ] },
+    email: 'madeleine.till@example.com',
+    fullName: 'Madeleine Till'
+  },
+  {
+    location: { type: 'Point', coordinates: [ 101.5995, 78.8545 ] },
+    email: 'isolino.viana@example.com',
+    fullName: 'Isolino Viana'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -8.557, -14.4912 ] },
+    email: 'shona.kemperman@example.com',
+    fullName: 'Shona Kemperman'
+  },
+  {
+    location: { type: 'Point', coordinates: [ 148.0944, 35.5726 ] },
+    email: 'louise.graham@example.com',
+    fullName: 'Louise Graham'
+  },
+  {
+    location: { type: 'Point', coordinates: [ 43.9085, 25.1614 ] },
+    email: 'mestan.kaplangı@example.com',
+    fullName: 'Mestan Kaplangı'
+  },
+  {
+    location: { type: 'Point', coordinates: [ 135.9359, 71.9851 ] },
+    email: 'katie.welch@example.com',
+    fullName: 'Katie Welch'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -83.3326, -88.6846 ] },
+    email: 'sandra.lorenzo@example.com',
+    fullName: 'Sandra Lorenzo'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -90.9499, 21.3388 ] },
+    email: 'بنیامین.سالاری@example.com',
+    fullName: 'بنیامین سالاری'
+  },
+  {
+    location: { type: 'Point', coordinates: [ 59.5703, -67.6434 ] },
+    email: 'andreia.arnaud@example.com',
+    fullName: 'Andreia Arnaud'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -90.4049, -65.0877 ] },
+    email: 'delia.durand@example.com',
+    fullName: 'Delia Durand'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -104.3451, -88.4983 ] },
+    email: 'aya.liland@example.com',
+    fullName: 'Aya Liland'
+  }
+]
+Type "it" for more
+analytics> 
+
+
+
+
+____________________________________________________Transforming the BirthDate______________________________________________________________
+
+
+
+
+
+
+For transforming the date to ISODate in MongoDB
+
+
+db.persons.aggregate([	
+	{
+		$project:{ 
+			_id:0,
+			name:1,
+			email:1,
+			birthDate:{ $convert : { input : '$dob.date' , to : 'date' } },
+			age: '$dob.age',
+			location:{ 
+				type:"Point",
+				coordinates:[
+					{$convert:{ input: "$location.coordinates.longitude",to:'double',onError:0.0,onNull:0.0}},
+					{$convert:{ input: "$location.coordinates.latitude",to:'double',onError:0.0,onNull:0.0}}
+				]
+
+			}
+
+		}
+	},
+	{
+		$project: {
+		 gender:1 ,
+		 email:1,
+		 location:1,
+		 birthDate:1,
+		 age:1,
+		 fullName:{ 
+		 	$concat:[ 
+		 		{
+		 			$toUpper:{$substrCP:['$name.first',0,1]} 
+		 		} ,
+		 		{ 
+		 			$substrCP:['$name.first',1,{$subtract:[{$strLenCP:'$name.first'},1]}]
+		 		} , 
+		 		' ' , 
+		 		{
+		 			$toUpper:{$substrCP:['$name.last',0,1]} 
+		 		} ,
+		 		{ 
+		 			$substrCP:['$name.last',1,{$subtract:[{$strLenCP:'$name.last'},1]}]
+		 		}  
+		 	]
+		} 
+	} 
+}
+]).pretty()
+
+
+
+
+
+
+
+[
+  {
+    location: { type: 'Point', coordinates: [ 59.5703, -67.6434 ] },
+    email: 'andreia.arnaud@example.com',
+    birthDate: ISODate("1960-01-31T05:16:10.000Z"),
+    age: 58,
+    fullName: 'Andreia Arnaud'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -90.4049, -65.0877 ] },
+    email: 'delia.durand@example.com',
+    birthDate: ISODate("1966-08-03T09:22:41.000Z"),
+    age: 52,
+    fullName: 'Delia Durand'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -104.3451, -88.4983 ] },
+    email: 'aya.liland@example.com',
+    birthDate: ISODate("1973-08-26T00:11:58.000Z"),
+    age: 45,
+    fullName: 'Aya Liland'
+  }
+]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+__________________________________________Using shortcuts for Transformation___________________________________________________
+
+
+
+
+
+We convert quite a bit in our dataset and that is of course all right.
+
+However if you just need a simple conversion like this one, where you don't specify on error and on null,
+
+then you can also use a shortcut,
+
+there are some special operators in mongodb
+
+and of course you find them in the official docs under aggregation pipeline operators. There you find if
+
+you scroll down to T, to date, to decimal, to double, to int, to long and so on operators,
+
+so these are shortcuts if you need to do a specific transformation.
+
+
+
+
+
+db.persons.aggregate([	
+	{
+		$project:{ 
+			_id:0,
+			name:1,
+			email:1,
+			birthDate:{ $toDate : '$dob.date' },
+			age: '$dob.age',
+			location:{ 
+				type:"Point",
+				coordinates:[
+					{$convert:{ input: "$location.coordinates.longitude",to:'double',onError:0.0,onNull:0.0}},
+					{$convert:{ input: "$location.coordinates.latitude",to:'double',onError:0.0,onNull:0.0}}
+				]
+
+			}
+
+		}
+	},
+	{
+		$project: {
+		 gender:1 ,
+		 email:1,
+		 location:1,
+		 birthDate:1,
+		 age:1,
+		 fullName:{ 
+		 	$concat:[ 
+		 		{
+		 			$toUpper:{$substrCP:['$name.first',0,1]} 
+		 		} ,
+		 		{ 
+		 			$substrCP:['$name.first',1,{$subtract:[{$strLenCP:'$name.first'},1]}]
+		 		} , 
+		 		' ' , 
+		 		{
+		 			$toUpper:{$substrCP:['$name.last',0,1]} 
+		 		} ,
+		 		{ 
+		 			$substrCP:['$name.last',1,{$subtract:[{$strLenCP:'$name.last'},1]}]
+		 		}  
+		 	]
+		} 
+	} 
+}
+]).pretty()
+
+
+
+
+
+
+
+If I execute this, you see we still have an ISO date but now it's a bit shorter,
+
+so be aware of these shortcuts for simple transformations.
+
+If you do want to specify your own on error and on null fallback because you might have incomplete data
+
+in your dataset, then using these shortcuts is a bit more difficult,
+
+you at least have to check their docs to see if the default value is they will assume are all right
+
+for you.
+
+
+
+
+
+
+
+[
+ {
+    location: { type: 'Point', coordinates: [ 59.5703, -67.6434 ] },
+    email: 'andreia.arnaud@example.com',
+    birthDate: ISODate("1960-01-31T05:16:10.000Z"),
+    age: 58,
+    fullName: 'Andreia Arnaud'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -90.4049, -65.0877 ] },
+    email: 'delia.durand@example.com',
+    birthDate: ISODate("1966-08-03T09:22:41.000Z"),
+    age: 52,
+    fullName: 'Delia Durand'
+  },
+  {
+    location: { type: 'Point', coordinates: [ -104.3451, -88.4983 ] },
+    email: 'aya.liland@example.com',
+    birthDate: ISODate("1973-08-26T00:11:58.000Z"),
+    age: 45,
+    fullName: 'Aya Liland'
+  }
+]
+
+
+
+
+____________________________________Understanding the $isWeekYear Operator______________________________________________
+
+
+
+
+analytics> 
+
+analytics> db.persons.aggregate([
+... 	{
+..... 		$project:{ 
+....... 			_id:0,
+....... 			name:1,
+....... 			email:1,
+....... 			birthDate:{ $toDate : '$dob.date' },
+....... 			age: '$dob.age',
+....... 			location:{ 
+......... 				type:"Point",
+......... 				coordinates:[
+......... 					{$convert:{ input: "$location.coordinates.longitude",to:'double',onError:0.0,onNull:0.0}},
+......... 					{$convert:{ input: "$location.coordinates.latitude",to:'double',onError:0.0,onNull:0.0}}
+......... 				]
+......... 
+... 			}
+... 
+... 		}
+... 	},
+... 	{
+... 		$project: {
+..... 		 gender:1 ,
+..... 		 email:1,
+..... 		 location:1,
+..... 		 birthDate:1,
+..... 		 age:1,
+..... 		 fullName:{ 
+....... 		 	$concat:[ 
+....... 		 		{
+......... 		 			$toUpper:{$substrCP:['$name.first',0,1]} 
+......... 		 		} ,
+....... 		 		{ 
+......... 		 			$substrCP:['$name.first',1,{$subtract:[{$strLenCP:'$name.first'},1]}]
+......... 		 		} , 
+....... 		 		' ' , 
+....... 		 		{
+......... 		 			$toUpper:{$substrCP:['$name.last',0,1]} 
+......... 		 		} ,
+....... 		 		{ 
+......... 		 			$substrCP:['$name.last',1,{$subtract:[{$strLenCP:'$name.last'},1]}]
+......... 		 		}  
+....... 		 	]
+....... 		} 
+..... 	} 
+... },
+... 
+... { $group : { _id : { birthYear:{ $isoWeekYear: "$birthDate" } },numPersons:{$sum:1} } }
+... ]).pretty()
+[
+  { _id: { birthYear: Long("1980") }, numPersons: 86 },
+  { _id: { birthYear: Long("1997") }, numPersons: 52 },
+  { _id: { birthYear: Long("1985") }, numPersons: 79 },
+  { _id: { birthYear: Long("1970") }, numPersons: 99 },
+  { _id: { birthYear: Long("1965") }, numPersons: 98 },
+  { _id: { birthYear: Long("1952") }, numPersons: 85 },
+  { _id: { birthYear: Long("1944") }, numPersons: 27 },
+  { _id: { birthYear: Long("1994") }, numPersons: 102 },
+  { _id: { birthYear: Long("1946") }, numPersons: 100 },
+  { _id: { birthYear: Long("1961") }, numPersons: 111 },
+  { _id: { birthYear: Long("1990") }, numPersons: 103 },
+  { _id: { birthYear: Long("1964") }, numPersons: 87 },
+  { _id: { birthYear: Long("1963") }, numPersons: 98 },
+  { _id: { birthYear: Long("1989") }, numPersons: 93 },
+  { _id: { birthYear: Long("1993") }, numPersons: 110 },
+  { _id: { birthYear: Long("1975") }, numPersons: 107 },
+  { _id: { birthYear: Long("1957") }, numPersons: 82 },
+  { _id: { birthYear: Long("1996") }, numPersons: 86 },
+  { _id: { birthYear: Long("1987") }, numPersons: 92 },
+  { _id: { birthYear: Long("1956") }, numPersons: 87 }
+]
+Type "it" for more
+analytics> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+analytics> 
+
+analytics> db.persons.aggregate([
+... 	{
+..... 		$project:{ 
+....... 			_id:0,
+....... 			name:1,
+....... 			email:1,
+....... 			birthDate:{ $toDate : '$dob.date' },
+....... 			age: '$dob.age',
+....... 			location:{ 
+......... 				type:"Point",
+......... 				coordinates:[
+......... 					{$convert:{ input: "$location.coordinates.longitude",to:'double',onError:0.0,onNull:0.0}},
+......... 					{$convert:{ input: "$location.coordinates.latitude",to:'double',onError:0.0,onNull:0.0}}
+......... 				]
+......... 
+... 			}
+... 
+... 		}
+... 	},
+... 	{
+... 		$project: {
+..... 		 gender:1 ,
+..... 		 email:1,
+..... 		 location:1,
+..... 		 birthDate:1,
+..... 		 age:1,
+..... 		 fullName:{ 
+....... 		 	$concat:[ 
+....... 		 		{
+......... 		 			$toUpper:{$substrCP:['$name.first',0,1]} 
+......... 		 		} ,
+....... 		 		{ 
+......... 		 			$substrCP:['$name.first',1,{$subtract:[{$strLenCP:'$name.first'},1]}]
+......... 		 		} , 
+....... 		 		' ' , 
+....... 		 		{
+......... 		 			$toUpper:{$substrCP:['$name.last',0,1]} 
+......... 		 		} ,
+....... 		 		{ 
+......... 		 			$substrCP:['$name.last',1,{$subtract:[{$strLenCP:'$name.last'},1]}]
+......... 		 		}  
+....... 		 	]
+....... 		} 
+..... 	} 
+... },
+... 
+... { $group : { _id : { birthYear:{ $isoWeekYear: "$birthDate" } },numPersons:{$sum:1} } },
+... { $sort: { numPersons:-1 } }
+... ]).pretty()
+[
+  { _id: { birthYear: Long("1955") }, numPersons: 113 },
+  { _id: { birthYear: Long("1961") }, numPersons: 111 },
+  { _id: { birthYear: Long("1993") }, numPersons: 110 },
+  { _id: { birthYear: Long("1960") }, numPersons: 110 },
+  { _id: { birthYear: Long("1975") }, numPersons: 107 },
+  { _id: { birthYear: Long("1945") }, numPersons: 106 },
+  { _id: { birthYear: Long("1976") }, numPersons: 105 },
+  { _id: { birthYear: Long("1967") }, numPersons: 104 },
+  { _id: { birthYear: Long("1990") }, numPersons: 103 },
+  { _id: { birthYear: Long("1994") }, numPersons: 102 },
+  { _id: { birthYear: Long("1981") }, numPersons: 102 },
+  { _id: { birthYear: Long("1958") }, numPersons: 101 },
+  { _id: { birthYear: Long("1995") }, numPersons: 101 },
+  { _id: { birthYear: Long("1946") }, numPersons: 100 },
+  { _id: { birthYear: Long("1948") }, numPersons: 100 },
+  { _id: { birthYear: Long("1970") }, numPersons: 99 },
+  { _id: { birthYear: Long("1983") }, numPersons: 99 },
+  { _id: { birthYear: Long("1950") }, numPersons: 99 },
+  { _id: { birthYear: Long("1965") }, numPersons: 98 },
+  { _id: { birthYear: Long("1963") }, numPersons: 98 }
+]
+Type "it" for more
+analytics> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+____________________________________________$Group Vs $Project____________________________________________________
+
+
+
+
+Now we worked a lot with group and project and it's really important for you to understand the difference.
+
+Group is for grouping multiple documents into one document, whereas project is a one to one relation,
+
+you get one document and then you will return one document, that one document we'll just have changed.
+
+So for group, you have multiple documents and you return one grouped by one or more categories
+
+of your choice
+
+and then also with any new fields with some summary, well statistics or summary calculations, in projection,
+
+you have a one to one relation.
+
+So in grouping, you do things like summing, counting, averaging and so on, in projection phases, you transform
+
+a single document, you add new fields and so on.
+
+This is the difference and this is really important to understand and to get right.
+
+
+
+
+
+
+               $group							$project
+               
+               
+               n : 1							1 : 1
+               
+               
+      Sum,Count,Average,Build Array                          Include/Exclude Fields,Transform Fields
+      								(Within a single Document)
+      								
+      								
+      								
+      								
+      								
+      								
+      								
+      								
+      								
+      								
+      								
+      								
+      								
+      								
+      								
+      								
+
+_______________________________________________Pushing elements into Newly created Arrays______________________________________________
+
+
+
+
+
+
+db.friends.insertMany([
+  {
+    "name": "Max",
+    "hobbies": ["Sports", "Cooking"],
+    "age": 29,
+    "examScores": [
+      { "difficulty": 4, "score": 57.9 },
+      { "difficulty": 6, "score": 62.1 },
+      { "difficulty": 3, "score": 88.5 }
+    ]
+  },
+  {
+    "name": "Manu",
+    "hobbies": ["Eating", "Data Analytics"],
+    "age": 30,
+    "examScores": [
+      { "difficulty": 7, "score": 52.1 },
+      { "difficulty": 2, "score": 74.3 },
+      { "difficulty": 5, "score": 53.1 }
+    ]
+  },
+  {
+    "name": "Maria",
+    "hobbies": ["Cooking", "Skiing"],
+    "age": 29,
+    "examScores": [
+      { "difficulty": 3, "score": 75.1 },
+      { "difficulty": 8, "score": 44.2 },
+      { "difficulty": 6, "score": 61.5 }
+    ]
+  }
+])
+
+
+
+
+
+
+
+
+
+db.friends.aggregate([
+  
+  {$group:{_id:{ age:"$age"},allHobbies: { $push : "$hobbies" }  }}
+
+])
+
+
+
+[
+  { _id: { age: 30 }, allHobbies: [ [ 'Eating', 'Data Analytics' ] ] },
+  {
+    _id: { age: 29 },
+    allHobbies: [ [ 'Sports', 'Cooking' ], [ 'Cooking', 'Skiing' ] ]
+  }
+]
+
+
+
+
+
+
+
+Now what you see is that we have two groups, age 30 and age 29 and all hobbies is an array of arrays because
+
+we push hobbies into our array and hobbies happens to be an array itself, here
+
+hobbies is an array and we just push that value into our all hobbies array here.
+
+That is what I meant, you can push any value of course, not just existing arrays but what if you wanted
+
+to push the values of existing arrays in there but not as one array but you want to pull these values
+
+out of this array and then add them to all hobbies.
+
+
+
+
+
+_________________________________________Understanding the $unwind stage_____________________________________________________
+
+
+
+
+
+The unwind stage is always a great stage when you have an array of which you want to pull out the elements.
+
+Now to understand what unwind does, I'll temporarily move my grouping out of there so that I can just copy
+
+that later and I'll complete the unwind stage.
+
+Unwind has two different syntaxes and you can check the official docs for all the details as always,
+
+in its most common usage,
+
+you just pass the name of a field that holds an array,
+
+
+
+
+
+contactData> 
+
+contactData> db.friends.aggregate([
+...   
+...   {$unwind:"$hobbies"}
+... 
+... ]).pretty();
+[
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065eb"),
+    name: 'Max',
+    hobbies: 'Sports',
+    age: 29,
+    examScores: [
+      { difficulty: 4, score: 57.9 },
+      { difficulty: 6, score: 62.1 },
+      { difficulty: 3, score: 88.5 }
+    ]
+  },
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065eb"),
+    name: 'Max',
+    hobbies: 'Cooking',
+    age: 29,
+    examScores: [
+      { difficulty: 4, score: 57.9 },
+      { difficulty: 6, score: 62.1 },
+      { difficulty: 3, score: 88.5 }
+    ]
+  },
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065ec"),
+    name: 'Manu',
+    hobbies: 'Eating',
+    age: 30,
+    examScores: [
+      { difficulty: 7, score: 52.1 },
+      { difficulty: 2, score: 74.3 },
+      { difficulty: 5, score: 53.1 }
+    ]
+  },
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065ec"),
+    name: 'Manu',
+    hobbies: 'Data Analytics',
+    age: 30,
+    examScores: [
+      { difficulty: 7, score: 52.1 },
+      { difficulty: 2, score: 74.3 },
+      { difficulty: 5, score: 53.1 }
+    ]
+  },
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065ed"),
+    name: 'Maria',
+    hobbies: 'Cooking',
+    age: 29,
+    examScores: [
+      { difficulty: 3, score: 75.1 },
+      { difficulty: 8, score: 44.2 },
+      { difficulty: 6, score: 61.5 }
+    ]
+  },
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065ed"),
+    name: 'Maria',
+    hobbies: 'Skiing',
+    age: 29,
+    examScores: [
+      { difficulty: 3, score: 75.1 },
+      { difficulty: 8, score: 44.2 },
+      { difficulty: 6, score: 61.5 }
+    ]
+  }
+]
+contactData> 
+
+
+
+
+So what unwind does is it basically flattens the array by repeating the document
+
+that held the array as often as needed to merge it with the array elements. So the original array of Max
+
+simply has sports and cooking,
+
+therefore Max was repeated twice,
+
+we get two new documents, Max with sports and Max with cooking and the same is true for all other elements.
+
+So where group merges multiple documents into one, unwind takes one document and spits out multiple
+
+documents
+
+
+
+
+
+
+
+Now if we use the aggregation with unwind and group together
+
+
+contactData> db.friends.aggregate([
+...   
+...   {$unwind:"$hobbies"},
+...   {$group:{_id:{ age:"$age"},allHobbies: { $push : "$hobbies" }  }}
+... 
+... ]).pretty();
+[
+  { _id: { age: 30 }, allHobbies: [ 'Eating', 'Data Analytics' ] },
+  {
+    _id: { age: 29 },
+    allHobbies: [ 'Sports', 'Cooking', 'Cooking', 'Skiing' ]
+  }
+]
+contactData> 
+
+
+
+
+Now we have duplicate values in hobbies,Its a problem
+
+
+________-_____________________________________Eliminating Duplicate Values____________________________________________-
+
+
+
+You might not want duplicate values and to avoid that,
+
+you can use an alternative to push. Instead of push, you can use add to set, add to set does almost the same
+
+but if I run it, you see now we have no duplicate values because add to set essentially also pushes
+
+but avoids duplicate values. If it finds that an entry already exists,
+
+it just doesn't push the new value,
+
+this is what adds to set does.
+
+So with that, with unwind, with push in the group stage and with add to set in the group stage, you
+
+get powerful features that should help you manage your array data efficiently and transform it into
+
+whichever format you require.
+
+
+
+
+contactData> 
+
+contactData> db.friends.aggregate([
+...   
+...   {$unwind:"$hobbies"},
+...   {$group:{_id:{ age:"$age"},allHobbies: { $addToSet : "$hobbies" }  }}
+... 
+... ]).pretty();
+[
+  { _id: { age: 29 }, allHobbies: [ 'Cooking', 'Skiing', 'Sports' ] },
+  { _id: { age: 30 }, allHobbies: [ 'Data Analytics', 'Eating' ] }
+]
+contactData> 
+
+
+
+
+__________________________________________________Using Projection With Arrays__________________________________________________________
+
+
+
+
+
+
+contactData> db.friends.aggregate([
+...   
+...   {$project : { _id : 0,examScore:{ $slice: ["$examScores",-1] } }}
+... 
+... ])
+[
+  { examScore: [ { difficulty: 3, score: 88.5 } ] },
+  { examScore: [ { difficulty: 5, score: 53.1 } ] },
+  { examScore: [ { difficulty: 6, score: 61.5 } ] }
+]
+contactData> 
+
+
+
+
+
+projecting the examScore,Only fetching the last element of the array using slice
+
+
+
+
+projecting the last 2 elements
+
+contactData> db.friends.aggregate([ { $project: { _id: 0, examScore: { $slice: ["$examScores", -2] } } }])
+[
+  {
+    examScore: [ { difficulty: 6, score: 62.1 }, { difficulty: 3, score: 88.5 } ]
+  },
+  {
+    examScore: [ { difficulty: 2, score: 74.3 }, { difficulty: 5, score: 53.1 } ]
+  },
+  {
+    examScore: [ { difficulty: 8, score: 44.2 }, { difficulty: 6, score: 61.5 } ]
+  }
+]
+contactData> db.friends.aggregate([ { $project: { _id: 0, examScore: { $slice: ["$examScores", 1] } } }])
+[
+  { examScore: [ { difficulty: 4, score: 57.9 } ] },
+  { examScore: [ { difficulty: 7, score: 52.1 } ] },
+  { examScore: [ { difficulty: 3, score: 75.1 } ] }
+]
+contactData> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+contactData> db.friends.aggregate([ { $project: { _id: 0, examScore: { $slice: ["$examScores", 1] } } }])
+[
+  { examScore: [ { difficulty: 4, score: 57.9 } ] },
+  { examScore: [ { difficulty: 7, score: 52.1 } ] },
+  { examScore: [ { difficulty: 3, score: 75.1 } ] }
+]
+contactData> db.friends.aggregate([ { $project: { _id: 0, examScore: { $slice: ["$examScores", -1] } } }])
+[
+  { examScore: [ { difficulty: 3, score: 88.5 } ] },
+  { examScore: [ { difficulty: 5, score: 53.1 } ] },
+  { examScore: [ { difficulty: 6, score: 61.5 } ] }
+]
+contactData> db.friends.aggregate([ { $project: { _id: 0, examScore: { $slice: ["$examScores", -2] } } }])
+[
+  {
+    examScore: [ { difficulty: 6, score: 62.1 }, { difficulty: 3, score: 88.5 } ]
+  },
+  {
+    examScore: [ { difficulty: 2, score: 74.3 }, { difficulty: 5, score: 53.1 } ]
+  },
+  {
+    examScore: [ { difficulty: 8, score: 44.2 }, { difficulty: 6, score: 61.5 } ]
+  }
+]
+
+
+=>fetchng 2 consecutive elements starting from index 1  
+
+contactData> db.friends.aggregate([ { $project: { _id: 0, examScore: { $slice: ["$examScores", 1,2] } } }])
+[
+  {
+    examScore: [ { difficulty: 6, score: 62.1 }, { difficulty: 3, score: 88.5 } ]
+  },
+  {
+    examScore: [ { difficulty: 2, score: 74.3 }, { difficulty: 5, score: 53.1 } ]
+  },
+  {
+    examScore: [ { difficulty: 8, score: 44.2 }, { difficulty: 6, score: 61.5 } ]
+  }
+]
+contactData> 
+
+
+
+
+
+
+
+
+
+
+
+_________________________________________Getting the length of an Array_______________________________________________
+
+
+
+contactData> db.friends.aggregate([
+...   
+...   {$project : { _id : 0,numScores : { $size : "$examScores" } }}
+... 
+... ])
+[ { numScores: 3 }, { numScores: 3 }, { numScores: 3 } ]
+contactData> 
+
+
+
+
+
+
+________________________________________Using the $filter Operator_____________________________________________________
+
+
+
+
+contactData> db.friends.aggregate([ { $project: { _id: 0, scores: { $filter: { input: "$examScores", as: "sc", cond: { $gt: ["$$sc.score", 80] } } } } }]). pretty();
+[
+  { scores: [ { difficulty: 3, score: 88.5 } ] },
+  { scores: [] },
+  { scores: [] }
+]
+contactData> db.friends.aggregate([ { $project: { _id: 0, scores: { $filter: { input: "$examScores", as: "sc", cond: { $gt: ["$$sc.score", 60] } } } } }]). pretty();
+[
+  {
+    scores: [ { difficulty: 6, score: 62.1 }, { difficulty: 3, score: 88.5 } ]
+  },
+  { scores: [ { difficulty: 2, score: 74.3 } ] },
+  {
+    scores: [ { difficulty: 3, score: 75.1 }, { difficulty: 6, score: 61.5 } ]
+  }
+]
+contactData> db.friends.aggregate([ { $project: { _id: 0, scores: { $filter: { input: "$examScores", as: "sc", cond: { $gt: ["$$sc.score", 50] } } } } }]). pretty();
+[
+  {
+    scores: [
+      { difficulty: 4, score: 57.9 },
+      { difficulty: 6, score: 62.1 },
+      { difficulty: 3, score: 88.5 }
+    ]
+  },
+  {
+    scores: [
+      { difficulty: 7, score: 52.1 },
+      { difficulty: 2, score: 74.3 },
+      { difficulty: 5, score: 53.1 }
+    ]
+  },
+  {
+    scores: [ { difficulty: 3, score: 75.1 }, { difficulty: 6, score: 61.5 } ]
+  }
+]
+contactData> 
+
+
+
+
+
+
+
+
+
+
+
+_______________________________ApplyingMultiple Operations______________________________________
+
+
+
+
+contactData> db.friends.aggregate([
+... 
+... 	{ $unwind: "$examScores" },
+... 	{ $project: {_id: 0,name:1,age:1,score:"$examScores.score"}}
+... 
+... 	]).pretty();
+[
+  { name: 'Max', age: 29, score: 57.9 },
+  { name: 'Max', age: 29, score: 62.1 },
+  { name: 'Max', age: 29, score: 88.5 },
+  { name: 'Manu', age: 30, score: 52.1 },
+  { name: 'Manu', age: 30, score: 74.3 },
+  { name: 'Manu', age: 30, score: 53.1 },
+  { name: 'Maria', age: 29, score: 75.1 },
+  { name: 'Maria', age: 29, score: 44.2 },
+  { name: 'Maria', age: 29, score: 61.5 }
+]
+contactData> 
+
+
+
+
+
+
+
+
+
+
+
+
+contactData> db.friends.aggregate([
+... 
+... 	{ $unwind: "$examScores" },
+... 	{ $project: {_id: 0,name:1,age:1,score:"$examScores.score"}},
+... 	{ $sort : { score : -1 } }
+... 
+... 	]).pretty();
+[
+  { name: 'Max', age: 29, score: 88.5 },
+  { name: 'Maria', age: 29, score: 75.1 },
+  { name: 'Manu', age: 30, score: 74.3 },
+  { name: 'Max', age: 29, score: 62.1 },
+  { name: 'Maria', age: 29, score: 61.5 },
+  { name: 'Max', age: 29, score: 57.9 },
+  { name: 'Manu', age: 30, score: 53.1 },
+  { name: 'Manu', age: 30, score: 52.1 },
+  { name: 'Maria', age: 29, score: 44.2 }
+]
+contactData> 
+
+
+
+
+
+
+
+
+
+
+
+contactData> db.friends.aggregate([
+... 
+... 	{ $unwind: "$examScores" },
+... 	{ $project: {_id: 1,name:1,age:1,score:"$examScores.score"}},
+... 	{ $sort : { score : -1 } },
+... 	{ $group : { _id : "$_id" ,maxScore:{$max:"$score"}} }
+... 
+... 	]).pretty();
+[
+  { _id: ObjectId("628ba03adf61e96ccb0065ed"), maxScore: 75.1 },
+  { _id: ObjectId("628ba03adf61e96ccb0065ec"), maxScore: 74.3 },
+  { _id: ObjectId("628ba03adf61e96ccb0065eb"), maxScore: 88.5 }
+]
+contactData> 
+
+
+
+
+
+
+
+
+
+
+
+contactData> db.friends.aggregate([
+... 
+... 	{ $unwind: "$examScores" },
+... 	{ $project: {_id: 1,name:1,age:1,score:"$examScores.score"}},
+... 	{ $sort : { score : -1 } },
+... 	{ $group : { _id : "$_id" , name : { $first : "$name" } ,maxScore:{$max:"$score"}} }
+... 
+... 	]).pretty();
+[
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065eb"),
+    name: 'Max',
+    maxScore: 88.5
+  },
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065ed"),
+    name: 'Maria',
+    maxScore: 75.1
+  },
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065ec"),
+    name: 'Manu',
+    maxScore: 74.3
+  }
+]
+
+
+
+
+
+
+
+contactData> db.friends.aggregate([
+... 
+... 	{ $unwind: "$examScores" },
+... 	{ $project: {_id: 1,name:1,age:1,score:"$examScores.score"}},
+... 	{ $sort : { score : -1 } },
+... 	{ $group : { _id : "$_id" , name : { $first : "$name" } ,maxScore:{$max:"$score"}} },
+... 	{ $sort: { maxScore: -1 }}
+... 
+... 	]).pretty();
+[
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065eb"),
+    name: 'Max',
+    maxScore: 88.5
+  },
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065ed"),
+    name: 'Maria',
+    maxScore: 75.1
+  },
+  {
+    _id: ObjectId("628ba03adf61e96ccb0065ec"),
+    name: 'Manu',
+    maxScore: 74.3
+  }
+]
+contactData> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

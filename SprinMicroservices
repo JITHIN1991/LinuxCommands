@@ -1,0 +1,1138 @@
+How to find the second largest element in a list using the java streams api
+
+How to find the second largest element from a table row mysql
+
+How to configure 2 databases in springboot
+
+
+How to query in JPA (How to fetch some specific columns from a table)
+
+
+
+
+profile in springboot
+
+springconfig server
+
+zuul gateway  
+
+eureka
+
+
+
+
+AOP use case in Spring
+
+AOP 
+
+
+PropertSource and Value annotations
+
+
+@COnfiguration  - What does it do
+
+
+
+
+
+
+
+
+
+
+interface segregation ?
+
+How to deploy a springboot application in a separate container
+
+
+
+
+
+
+
+
+@ConfigurationProperties
+
+Spring Boot @ConfigurationProperties is letting developer maps the entire .properties and yml file into an object easily.
+
+
+
+@ConfigurationProperties allows to map the entire Properties and Yaml files into an object easily. It also allows to validate properties with JSR-303 bean validation. By default, the annotation reads from the application
+
+
+
+ConfigurationPropertiesScan  
+
+Configures the base packages used when scanning for @ConfigurationProperties classes. One of basePackageClasses(), basePackages() or its alias value() may be specified to define specific packages to scan. If specific packages are not defined scanning will occur from the package of the class with this annotation.
+Note: Classes annotated or meta-annotated with @Component will not be picked up by this annotation.
+
+@ConstructorBinding.? related to @ConfigurationProperties
+
+
+
+How to integrate custom repository code => https://dzone.com/articles/add-custom-functionality-to-a-spring-data-reposito
+
+What is @PersistenceContext in spring boot?
+The @PersistenceContext annotation in your code is being used to indicate that the EntityManager must be automatically injected, in other words its lifecycle will be managed by the container running your application (which is a good thing).
+
+
+
+
+
+
+
+
+
+BeanNameAware and BeanFactoryAware?  
+
+
+
+
+
+
+
+
+
+we need these properties in the properties file
+
+limits-service.minimum=2
+limits-service.maximum=998
+
+and use the annotation as follows
+
+@ConfigurationProperties("limits-service")
+public class LimitConfiguration {
+
+	private int minimum;
+	private int maximum;
+	public int getMinimum() {
+		return minimum;
+	}
+	public void setMinimum(int minimum) {
+		this.minimum = minimum;
+	}
+	public int getMaximum() {
+		return maximum;
+	}
+	public void setMaximum(int maximum) {
+		this.maximum = maximum;
+	}
+	
+	
+	
+}
+
+
+
+
+
+
+__________________________________spring microservices_______________________________________________
+
+
+ServletUriComponenetBuilder
+
+
+@ResponseStatus
+
+One of the things that is cool about this structure is this is something which is provided by the default
+
+error handling that is provided by the combination of spring boot and spring web MVC frameworks. So what
+
+Spring Boot does is it auto configured some default exception handling for us.
+
+And that's why we are getting this return
+
+status back.
+
+
+
+ResponseEntityExceptionHandler
+
+One of the important classes which is present in spring is response entity exception handler.
+
+This is basically an abstract class which can be extended to provide centralized exception handling
+
+across all the different exception handler methods.
+
+So this one I can use as the base class to provide some default exception handling for all our requests.
+
+What we’ll do is we’ll extend this class. So we'll extend this and provide a customized exception handling
+
+functionality.
+
+
+
+
+
+
+
+
+
+@ControllerAdvice
+
+One thing we would want this to be applicable across
+
+all the other controllers.
+
+So, how can we do that?
+
+It can be done by using another spring annotation called Spring controller advice.
+
+What is @ControllerAdvice used for?
+@ControllerAdvice is a specialization of the @Component annotation which allows to handle exceptions across the whole application in one global handling component. It can be viewed as an interceptor of exceptions thrown by methods annotated with @RequestMapping and similar.
+
+
+
+
+
+Exception Handler with Controller Advice in Spring
+
+The @ExceptionHandler annotation indicates which type of Exception we want to handle. The exception instance and the request will be injected via method arguments. By using two annotations together, we can: control the body of the response along with status code.
+
+watch lecture 25 and 29
+
+
+
+HATEOAS
+
+Hyper-media As The Engine of Application State
+
+Hypermedia as the Engine of Application State (HATEOAS) is a constraint of the REST application architecture that distinguishes it from other network application architectures. With HATEOAS, a client interacts with a network application whose application servers provide information dynamically through hypermedia.
+
+Why is HATEOAS used?
+
+Using HATEOAS allows an API to clearly define a control logic that is available at the client-side. This enables them to follow links embedded in the API resources instead of having them manipulate URLs. This decouples clients from the URL structure so that changes don't end up hurting integration.
+
+
+
+
+What is HATEOAS in Java?
+HATEOAS acronyms for Hypermedia as the Engine of Application State. The term hypermedia refers to content that contains a link to other forms of media like images, movies, and text. It is a component of the REST application that distinguishes it from other network architecture.
+
+
+
+	@GetMapping("/{id}")
+	public EntityModel<User> getUserById(@PathVariable Integer id) {
+
+		User user = userService.findById(id);
+		if (user == null) {
+			throw new UserNotFoundException("The user not found");
+		}
+		EntityModel<User> model = EntityModel.of(user);
+		WebMvcLinkBuilder linkToUsers = linkTo(methodOn(this.getClass()).getAllUsers());
+		model.add(linkToUsers.withRel("all-users"));
+		return model;
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+InterNationalization  -  i18n
+
+
+Internationalization is a process that makes your application adaptable to different languages and regions without engineering changes on the source code. In ither words, Internationalization is a readiness of Localization.
+
+
+
+
+How does spring boot handle internationalization?
+
+By default, a Spring Boot application will look for message files containing internationalization keys and values in the src/main/resources folder. The file for the default locale will have the name messages. properties, and files for each locale will be named messages_XX. properties, where XX is the locale code.
+
+
+
+
+
+
+
+
+
+Message Bundle
+
+What is spring boot MessageSource?
+MessageSource is a powerful feature available in Spring applications. This helps application developers handle various complex scenarios with writing much extra code, such as environment-specific configuration, internationalization or configurable values.
+
+Which are the MessageSource implementations?
+Spring contains two built-in MessageSource implementations: ResourceBundleMessageSource and ReloadableResourceBundleMessageSource . The latter is able to reload message definitions without restarting the Virtual Machine.
+
+
+
+How do I put message properties in spring boot?
+Adding Message Properties Into The Spring Boot Project
+
+In order to do that, just create two files in src/main/resources/messages folder with naming as below, api_error_messages. properties. api_response_messages
+
+
+
+
+First we need to create the messages.properties file under the resource folder and then we can autowire the MessageSource bean wherever we want to use it as follows
+
+
+
+	@Autowired
+	private MessageSource messageSource;
+
+	@GetMapping("/helloWorldInternationalized")
+	public String helloWorldInternationalized(
+			@RequestHeader(name="Accept-Language",required = false) Locale locale
+			) {
+		
+		
+		return messageSource.getMessage("good.morning.message", null,"Default Message" ,locale);
+		
+		
+//		return "Hello World";
+	}
+
+
+
+
+
+
+
+
+
+
+_____________________________________Content Negotiation_______________________________________________
+
+
+
+
+
+
+watch lecture 33
+
+
+___________________________________________________SWAGGER___________________________________________________
+
+
+It is used for API documentation
+its using spring doc open api
+its using springdoc-openapi-ui dependency
+
+
+
+
+		<dependency>
+		    <groupId>org.springdoc</groupId>
+		    <artifactId>springdoc-openapi-ui</artifactId>
+		    <version>1.6.8</version>
+		</dependency>
+				
+		
+		
+		If we add this in the class path it will generate the documentation for all apis at the runtime
+		
+		
+		
+We will get the APIDOC in the url =>  http://localhost:8080/swagger-ui/index.html
+
+THe follwoeing link will give the Open API definition
+
+=> http://localhost:8080/v3/api-docs
+
+
+
+
+__________________________________Monitoring API with SpringBoot Actuator_____________________________________-
+
+
+
+
+
+What is a spring boot actuator?
+
+Spring Boot Actuator is a sub-project of the Spring Boot Framework. It uses HTTP endpoints to expose operational information about any running application. The main benefit of using this library is that we get health and monitoring metrics from production-ready applications
+
+
+
+
+
+Need to add the dependency for actuator
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		
+		
+		
+Once the dependency is added to  the classpath,then the default configuration is done.Thus we will get these basic endpoints by default
+
+
+http://localhost:8080/actuator
+
+returns the following JSON
+
+{
+  "_links": {
+    "self": {
+      "href": "http://localhost:8080/actuator",
+      "templated": false
+    },
+    "health": {
+      "href": "http://localhost:8080/actuator/health",
+      "templated": false
+    },
+    "health-path": {
+      "href": "http://localhost:8080/actuator/health/{*path}",
+      "templated": true
+    }
+  }
+}
+
+
+
+
+If we need more metrics,Then we  need to configure one property in application.properties file
+
+
+management.endpoints.web.exposure.include=*
+
+
+
+_______________________________HAL Explorer______________________________________
+
+
+What is Hal browser in spring boot?
+The HAL Browser enables visual representation around the Spring Boot Actuator API: When we launch ; http://localhost:8080/application ;in the browser, we can see all the URLs exposed by actuator. 
+
+
+
+Let's compare this against what I would get if I type in localhost actuator.
+
+So let's switch to this tab where we have the actuator.
+
+So what do we get when we type in localhost?
+
+That is less accurate.
+
+We get all the links in here and you can see that the Hile Explorer provides a visualization of all
+
+that information.
+
+It shows all the links in a visual format.
+
+And you can also see the response status and the response headers when we execute that API.
+
+So Real Explorer helps you to explore the space in an easy way.
+
+Earlier we talked about HATEOAS hypermedia as the representation of application state.
+
+When your applications support hits and when your application provide links in this kind of a way,
+
+you can use Hile Explorer to explore those APIs so well here we started with Actuator from Actuator.
+
+
+
+If we used HATEOAS for the application state we will get all the links in avisualaized representation in the HAL exploreer
+
+
+And you can navigate to all the links in the UI
+
+
+
+
+___________________________________Implementing Static filtering for RestFul Services____________________________________________
+
+
+We can use the @jsonIgnore in the filed level and @JsonIgnoreProperties annotation in the classlevel(for filtering the fields)
+
+
+What is JsonIgnore annotation?
+@JsonIgnore
+
+The Jackson annotation @JsonIgnore is used to tell Jackson to ignore a certain property (field) of a Java object. The property is ignored both when reading JSON into Java objects, and when writing Java objects into JSON
+
+
+class Student {
+   
+   @JsonIgnore
+   public int id;
+   
+   @JsonIgnore
+   public String systemId;
+   
+   public int rollNo;
+   
+   public String name;
+
+   Student(int id, int rollNo, String systemId, String name){
+      this.id = id;
+      this.systemId = systemId;
+      this.rollNo = rollNo;
+      this.name = name;
+   }
+}
+
+
+
+What does JsonIgnoreProperties mean?
+@JsonIgnoreProperties is used at class level to mark a property or list of properties to be ignored.
+
+
+
+
+
+
+@JsonIgnoreProperties({ "id", "systemId" })
+class Student {
+   public int id;
+   public String systemId;
+   public int rollNo;
+   public String name;
+
+   Student(int id, int rollNo, String systemId, String name){
+      this.id = id;
+      this.systemId = systemId;
+      this.rollNo = rollNo;
+      this.name = name;
+   }
+}
+
+
+
+
+
+
+
+
+
+
+________________________________iMPLEMENTING dYNAMIC FILERING_______________________
+
+
+we can do thi s using the MappingJacksonValue ,FilterProvider , SimpleBeanPropertyFilter , @JsonFilter
+
+
+
+	@GetMapping("/filtering")
+	public MappingJacksonValue getAllUsersFiltered() {
+		
+		logger.error("GET ALL USER START");
+		List<User> users = userService.findAll();
+		List<UserView> userViews = new ArrayList<>();		
+		
+		for(User user : users) {
+			
+			UserView userView = new UserViewBuilder()
+					.setId(user.getId())
+					.setFirstName(user.getFirstName())
+					.setLastName(user.getLastName())
+					.setHouseName(user.getHouseName())
+					.createUserView();
+			
+			userViews.add(userView);
+			
+		}
+		
+		SimpleBeanPropertyFilter filter =SimpleBeanPropertyFilter.filterOutAllExcept("firstName");		
+		FilterProvider filterProvider = new SimpleFilterProvider().addFilter("userViewBeanFilter", filter);
+		MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(userViews);
+
+		mappingJacksonValue.setFilters(filterProvider);
+		
+		logger.info("GET ALL USER ENDS HERE,Fetched {} users ",userViews.size());
+		
+		return mappingJacksonValue;
+	}
+
+
+
+@JsonFilter("userViewBeanFilter")
+public class UserView {
+
+	private int id;
+
+	private String firstName;
+
+	private String lastName;
+
+	private String houseName;
+
+
+}
+
+
+
+
+
+_________________________________________Versioning RESTFul Services_________________________________________________
+
+
+
+
+
+URL Versioning
+
+	@GetMapping("v1/person")
+	public PersonV1 getPersonV1() {		
+		return new PersonV1(new Name("Jithin", "M S"));
+	}
+	
+	@GetMapping("v2/person")
+	public PersonV2 getPersonV2() {
+		
+		return new PersonV2("Jithin");
+		
+	}
+
+
+Request param versioning
+	
+	@GetMapping(value="/person/param",params = "version=1")
+	public PersonV1 getPersonParamV1() {		
+		return new PersonV1(new Name("Jithin", "M S"));
+	}
+	
+	@GetMapping(value="/person/param",params = "version=2")
+	public PersonV2 getPersonParamV2() {
+		
+		return new PersonV2("Jithin");
+		
+	}
+
+
+Header versioning	
+
+	@GetMapping(value="/person/header",headers = "api-x-version=1")
+	public PersonV1 getPersonHeaderV1() {		
+		return new PersonV1(new Name("Jithin", "M S"));
+	}
+	
+	@GetMapping(value="/person/header",headers = "api-x-version=2")
+	public PersonV2 getPersonHeaderV2() {
+		
+		return new PersonV2("Jithin");
+		
+	}
+
+
+Media Type Versioning(produces versioning)
+	
+	@GetMapping(value="/person/produces",produces = "application/vnd.company.app-v1+json")
+	public PersonV1 getPersonProduceV1() {		
+		return new PersonV1(new Name("Jithin", "M S"));
+	}
+	
+	@GetMapping(value="/person/produces",produces = "application/vnd.company.app-v2+json")
+	public PersonV2 getPersonProduceV2() {
+		
+		return new PersonV2("Jithin");
+		
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Factors
+
+->URI Pollution [High for URI and param versioning]
+
+->Misuse of HTTP Headers [High header and mediaType]
+
+->caching [Not usable in Haeader and Mediatyoe]]
+
+->
+
+
+
+
+
+
+
+
+______________________________________MICROSERVICES_____________________________________________
+
+
+
+small autonomous services that work  together
+
+
+
+
+Microservices architrecture style is an approach to developing a single application as a suite of small services,each running in its own  process and communicating with lightweight mechaninsm,often an HTTP resource API..
+
+
+these services are built around business capabilities and independently deployable by fully automated deployment machinery.
+
+
+
+There is a bare minimum of centralized management for these services which may be written in different programming languages and maybe using different data storage technologies.
+
+
+
+
+
+
+
+MICROSERVICES
+
+=>REST (Servies which are exposed by REST)
+=>Small well chosen Deployable units
+=> Cloud enabled
+
+
+
+
+
+Cloud enabled?
+
+
+
+That means I would be able to have multiple instances for each of these micro services for example we're
+
+looking at the diagram of a production deployment for a set of microservices.
+
+You can see that at that at this moment there are three instances of MicroService1 7 instances
+
+of MicroService2 and 4 instance of MicroService3
+
+By cloud enabled I mean that if
+
+there is more load on MicroService3 I should be able to easily bring up another instance of
+
+MicroService3.
+
+This should not involve a lot of configuration I should be able to bring up an instance of MicroService3
+
+or take down a instance of MicroService2 without having huge problems.
+
+That is what I mean by cloud enabled.
+
+
+
+  microservice1       ----->    [A1] [A2] [A3]
+	|
+	|
+	|
+       \/
+  microservice2       ----->    [B1] [B2] [B3] [B4] [B5 [B6] [B7]
+	|
+	|
+	|
+       \/
+  microservice3       ----->    [C1] [C2] [C3] [C4]
+	|
+	|
+	|
+       \/
+  microservice4       ----->    [D1] [D2]
+	|
+	|
+	|
+       \/
+  microservice5       ----->    [E1] [E2] [E3]
+	|
+	|
+	|
+       \/
+  microservice6       ----->    [F1] [F2]
+
+
+
+
+
+
+
+
+____________________________Challenges with Microservices____________________________________
+
+
+
+=>Bounded Context  =>  Defingin the right boundary of microservices
+
+
+=>Confgiuration Management =>
+
+
+=>Dynamic Scale up and scale down
+
+
+
+
+
+
+
+
+
+
+
+ => 
+
+And if there are four instances of Microservice2 coming up then I would want to ensure that all the new ones are also being used to the fullest extent. So we need the ability to dynamically bring in new instances and also to distribute the load among the new instances 
+
+
+=>Visibility:
+
+If I say the functionality is now distributed among 10 microservices and there is a bug How do you
+
+identify where the bug is.
+
+You need to have a centralized log where I can go and find out what happened for a specific request
+
+which MicroService caused the problem not just that we also need monitoring around these microservices
+
+because we have hundreds ofmicroservices we need to be able to identify the microservices which
+
+are down.
+
+We would want to be able to automatically identify those where there is not enough disk space.
+
+All these kind of things need to be automated.
+
+So we need great visibility into what's happening with these microservices.
+
+=>Pack of Cards
+
+
+And last but not the least important of them is the fact that if it's not well-designed microservices
+
+architecture can be like backoff got what do I mean it's basically that in microservices architecture.
+
+You have one microservice is calling another another calling another.
+
+So there would be certain microservices which would be the fundamental for the whole thing.
+
+And if that microservice goes down then the entire application might go down.
+
+So it's like a pack of cards you're building one over the top of the other and so on and so on.
+
+And therefore they get collapse very easily and therefore it's very important for you to have fault
+
+tolerance in your microservices in this we looked at the 5 important challenges related
+
+to microservices.
+
+We started with bounded context identifying what is the right context for you or microservice is what
+
+is the right boundary for your.
+
+
+
+________________________________________Spring Cloud__________________________________________________
+
+
+ Configuration Management  =>  Spring Cloud Config Server 
+ 
+ 
+ 
+ 			CurrencyCalculationService        CurrencyExchangeService       LimitSErvice
+ 			
+ 				     |					|			|
+ 				     |					|			|
+ 				    \|/			       \/		       \/
+ 			__________________________________________________________________________
+			| 			Spring Cloud COnfig Server			     |
+			--------------------------------------------------------------------------
+							 |
+							\|/
+						-----------------	
+						|	GIT      |
+						-----------------
+
+
+ 
+ 
+ Dynamic scale up and down =>  
+ 		
+ 		Naming Server(Eureka)
+ 		Ribbon(Client Side load Balancing)  ---newer----> Spring Cloud Load Balancer
+ 		Feign(Easier Rest Clients)
+ 		
+ 		
+ 		In the latest versions Using Spring Cloud Gateway instead of zuul
+ 		
+ 		      				CurrencyCalculationService  
+ 			
+ 							 |			
+ 							 |			
+ 					    		 |		
+ 							 |
+							\|/
+						-----------------	
+						|     RIBBON    |  ---> Naming SErver
+						-----------------
+						|        |      |
+						|        |      |
+			_______________________|	 | 	 |___________________________	
+			|				 | 				      | 
+			|   				 |				      |
+	Currency Exchange Service1          Currency Exchange Service2          Currency Exchange Service3 
+ 		
+ 		
+ 		
+ 		
+ 		
+ 
+Visibility and Monitoring =>
+
+		Zipkin Distributed Tracing
+		Netflix API Gateway
+		
+Fault Tolerance=>
+		
+		Hysterix
+		
+			
+
+		
+
+
+
+________________________________________Advantages of Microservices_________________________________________________
+
+
+
+
+New Technology and Process Adaption
+
+Dynamic Scaling
+
+
+Faster Release Cycles
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_______________________________________________________________________________________________________________________
+
+
+
+
+
+
+
+
+
+
+_____________________________________________________Spring Cloud Gateway_________________________________________________________________
+
+
+
+
+
+-> Simple,yet effective  way to  route to APIs
+
+-> Provide cross cutting  concerns
+
+	-> security
+	-> Monitoring/metrics
+	-> logging
+
+-> Built on top of  Spring WebFlux (Reactive Approach)
+
+-> Features:
+	-> Match routes on any request  attribute
+	-> Define Predicate and Filters
+	-> Integrates  with  Spring cloud  Discovery client(Load Balancing)
+	-> Path Rewriting
+
+
+
+
+
+
+
+
+____________________________________________________Circuit Breaker Resillience4j____________________________________________________________
+
+
+
+->  what if one service is down or is slow?
+
+	impacts entire chain!!!
+	
+->Questins
+
+	-> can we return  a fallback response if a  service is down?
+	-> can we implement a circuit breaker pattern to reduce load?
+	-> can we retry requests in case of tempoorary failures?
+	-> can we implement rate limiting?
+
+
+	
+          S O L U T I O N
+
+Circuit Breaker Framework - Resillience4J
+
+
+
+
+
+
+
+
+
+Resilience4j is a lightweight, easy-to-use fault tolerance library inspired byNetflix Hystrix, but designed for Java 8 and functional programming.
+
+
+Resilience4j is a Java library that helps us build resilient and fault-tolerant applications. It provides a framework for writing code to prevent and handle such issues. Written for Java 8 and above, Resilience4j works on constructs like functional interfaces, lambda expressions, and method references
+
+
+
+
+
+
+
+
+
+
+
+Circuit Breaker
+
+
+The concept of a circuit breaker is to prevent calls to microservice when it’s known the call may fail or time out. This is done so that clients don’t waste their valuable resources handling requests that are likely to fail. Using this concept, you can give the server some spare time to recover.
+
+
+
+
+In the circuit breaker, there are 3 states Closed, Open, and Half-Open.
+
+=>Closed: when everything is normal. Initially, the circuit breaker is in a Closed state.
+
+=>Open: when a failure occurs above predetermined criteria. In this state, requests to other microservices will not be executed and fail-fast or fallback will be performed if available. When this state has passed a certain time limit, it will automatically or according to certain criteria will be returned to the Half-Open state.
+
+=>Half-Open: several requests will be executed to find out whether the microservices that we are calling are working normally. If successful, the state will be returned to the Closed state. However, if it still fails it will be returned to the Open state.
+
+
+
+
+
+
+
+
+
+To invoke multiple requests to an api 
+
+watch -n 0.1 curl http://localhost:8000/currency-exchange/from/USD/to/INR
+
+
+
+
+
+
+Enterprises are heading towards microservices architectures
+
+Advantages of microservices
+
+
+Build small microservices
+
+Flexibility to innovate andbuild applications in different programming languages(Go,Python,Java,js)
+
+BUT deployment becomes complex
+
+How can we have one way of deploying Go,Java,Python,JS..microservices?
+ -> Solution  =>  Containers
+ 
+ 
+ DOCKER
+ 
+ Create docker images for each microservices;;
+ 
+ Docker images contains everything a microservices needs to run:
+ 
+ -> APllication Runtime( JDK or Python or nodeJS)
+ -> Application code
+ -> Dependencies
+ 
+ You can  run the  docker containers  the same way  on any infrastructures
+  -> your local macjine
+  
+  -> Corporate Data center
+  
+  -> cloud
+  
+  
+ 
+ 
+
+
+
+
+___________________________________________________DISTRIBUTED TRACING - Zipkin Distribution _________________________________________________
+
+
+
+Complex call chain  
+
+How do you debug  problems?
+
+How do you trace  requests  across microservices
+
+Solution => DIstributed Tracing 
+
+
+
+         API Gateway                    CurrencyConversionMicrosrvce                    CurrencyExchangeMicroService
+             |                                        |                                               |
+             |                                        |                                               |
+             |                                        |                                               |
+             |                                       \|/                                              |
+             |                                        |                                               |
+             |---------------------------> DistributedTracingSErver <---------------------------------|       
+         						|
+         						|
+         					       \|/
+         					    Database
+         
+         
+
+Now, how does distributed tracing work?
+
+What would happen is, all the microservices involved would actually send all the information out to
+
+a single Distributed Tracing Server and this Distributed Tracing Server would store everything to a database.
+
+This database can be a in-memory database or a real database.
+
+In this course, we'd be using an in-memory database to store the information.
+
+But typically, in your production environments, this would be real databases.
+
+So, all the information that comes out from your microservices is stored by Distributed Tracing Server
+
+and the Distributed Tracing Server would provide you an interface which would allow you to trace the requests
+
+across multiple microservices.
+         
+         
+         
+         
+         
+         
+_____________________________________________

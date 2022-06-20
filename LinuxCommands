@@ -1,12 +1,18 @@
 
 
 
+Teams Pasword
+Seqato123
+
+
+___________________________________________________________________________________________________________________________
+
+
 
 GitHub token JITHIN1991
 
 
-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
-
+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
 
 
 
@@ -60,8 +66,8 @@ sandeeps96
 seqato@123
 
 
-
 -------------------------------------COUCHBASE COMMANDS------------------------------------------------
+
 
 
 
@@ -391,6 +397,9 @@ grep -C2 'fetched key' sfmcgw.log
 
 GATEWAY REPO
 git clone https://ajayjkurup_knowesis@bitbucket.org/knowesis/opolo-orchestrator.git
+app password - ev8ywv2t7ZJvYesTkh2z
+
+
 
 app password - L77AErYQhZWmGJuvVBdp
 
@@ -868,6 +877,7 @@ ISODate("2020-09-09") --------- Timestamp(12211122687)
 
 
  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Data Types & Limits<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+ 
 MongoDB has a couple of hard limits - most importantly, a single document in a collection (including all embedded documents it might have) must be <= 16mb. Additionally, you may only have 100 levels of embedded documents.
 
 You can find all limits (in great detail) here: https://docs.mongodb.com/manual/reference/limits/
